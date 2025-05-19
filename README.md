@@ -68,3 +68,25 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+## Building and Running with Docker
+
+You can also build and run this project using Docker.
+
+### Build the Docker image
+
+Use the following command in the project's root directory (where the `Dockerfile` is located) to build the Docker image:
+
+```sh
+docker build -t emotions-recognition-fe .
+```
+
+### Run the Docker container
+
+Once the image is built, you can run it as a container. This command will also load environment variables from the `.config` file and map port 80 of the container to port 80 on your host machine:
+
+```sh
+docker run --env-file .config -p 80:80 emotions-recognition-fe
+```
+
+You should then be able to access the application at [http://localhost:80](http://localhost:80).
