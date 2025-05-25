@@ -1,41 +1,74 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Button, Card, Row, Col, Badge } from 'react-bootstrap';
+import { Container, Button, Card, Row, Col, Badge, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ApiService from '../services/apiService';
 import { ROUTES, EMOTIONS } from '../constants';
 import { formatTimestamp } from '../utils/helpers';
 
-const FinalPage = () => {
-  const [isProcessing, setIsProcessing] = useState(true);
+const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true);
+  const [submissionError, setSubmissionError] = useState(null);
   const [results, setResults] = useState(null);
   const navigate = useNavigate();
   const { state, resetState } = useAppContext();
 
   useEffect(() => {
-    // Simulate processing time
-    const timer = setTimeout(() => {
-      // Mock results - replace with actual API response
-      setResults({
-        dominantEmotion: 'happy',
-        confidence: 85.7,
-        emotionBreakdown: {
-          [EMOTIONS.HAPPY]: 85.7,
-          [EMOTIONS.NEUTRAL]: 8.3,
-          [EMOTIONS.SURPRISED]: 4.2,
-          [EMOTIONS.SAD]: 1.8,
-          [EMOTIONS.ANGRY]: 0.0,
-          [EMOTIONS.FEARFUL]: 0.0,
-          [EMOTIONS.DISGUSTED]: 0.0
-        },
-        processedFrames: state.capturedFrames.length,
-        timestamp: new Date().toISOString()
-      });
-      setIsProcessing(false);
-    }, 3000);
+    const submitAssessment = async () => {
+      // Redirect if no data to submit
+      if (!state.profile.userId || !state.imageReactions || state.imageReactions.length === 0) {
+        navigate(ROUTES.PROFILE);
+        return;
+      }
 
-    return () => clearTimeout(timer);
-  }, [state.capturedFrames]);
+      try {
+        // Prepare the assessment data
+        const assessmentData = {
+          userId: state.profile.userId,
+          imagesDescriptionsAndReactions: state.imageReactions.map(reaction => ({
+            imageId: reaction.imageId,
+            description: reaction.description || '',
+            reaction: reaction.reaction,
+            aiComment: reaction.aiComment || reaction.reaction
+          }))
+        };
+
+        // Submit to the register-result endpoint
+        const response = await ApiService.submitAssessment(assessmentData);
+        
+        // Calculate some basic statistics for display
+        const emotionCounts = {};
+        state.imageReactions.forEach(reaction => {
+          const emotion = reaction.reaction;
+          emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
+        });
+
+        const totalReactions = state.imageReactions.length;
+        const dominantEmotion = Object.keys(emotionCounts).reduce((a, b) => 
+          emotionCounts[a] > emotionCounts[b] ? a : b
+        );
+
+        // Create results summary
+        const resultsData = {
+          dominantEmotion,
+          totalImages: totalReactions,
+          emotionBreakdown: {},
+          reactions: state.imageReactions,
+          submissionResponse: response
+        };
+
+        // Calculate percentages
+        Object.keys(emotionCounts).forEach(emotion => {
+          resultsData.emotionBreakdown[emotion] = (emotionCounts[emotion] / totalReactions) * 100;
+        });        setResults(resultsData);      } catch (error) {
+        setSubmissionError(error.message || 'Failed to submit assessment');
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    submitAssessment();
+  }, [state, navigate]);
 
   const handleStartOver = () => {
     resetState();
@@ -68,12 +101,31 @@ const FinalPage = () => {
     return colors[emotion] || 'light';
   };
 
-  if (isProcessing) {
+  if (isSubmitting) {
     return (
       <LoadingSpinner 
-        message="Processing your emotion analysis..." 
+        message="Submitting your assessment results..." 
         fullScreen 
       />
+    );
+  }
+
+  if (submissionError) {
+    return (
+      <Container className="py-5">
+        <Row className="justify-content-center">
+          <Col lg={6}>
+            <Alert variant="danger" className="text-center">
+              <i className="bi bi-exclamation-triangle display-4 mb-3"></i>
+              <h4>Submission Failed</h4>
+              <p>{submissionError}</p>
+              <Button variant="outline-danger" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </Alert>
+          </Col>
+        </Row>
+      </Container>
     );
   }
 
@@ -83,10 +135,10 @@ const FinalPage = () => {
         <Col lg={8}>
           <div className="text-center text-white mb-5">
             <i className="bi bi-check-circle display-1 text-success mb-3"></i>
-            <h1 className="display-5 fw-bold mb-3">Analysis Complete!</h1>
+            <h1 className="display-5 fw-bold mb-3">Assessment Complete!</h1>
             <p className="lead">
               Thank you for participating in our emotion recognition study. 
-              Here are your results:
+              Your responses have been successfully submitted.
             </p>
           </div>
 
@@ -98,22 +150,22 @@ const FinalPage = () => {
                   <div className="mb-3">
                     <i className={`bi ${getEmotionIcon(results.dominantEmotion)} display-1 text-${getEmotionColor(results.dominantEmotion)}`}></i>
                   </div>
-                  <h3 className="mb-2">Primary Emotion Detected</h3>
+                  <h3 className="mb-2">Most Frequent Emotion Response</h3>
                   <h2 className={`text-${getEmotionColor(results.dominantEmotion)} text-capitalize mb-2`}>
                     {results.dominantEmotion}
                   </h2>
                   <p className="text-muted mb-0">
-                    Confidence: <strong>{results.confidence}%</strong>
+                    Images Processed: <strong>{results.totalImages}</strong>
                   </p>
                 </Card.Body>
               </Card>
 
-              {/* Detailed Breakdown */}
+              {/* Emotion Response Summary */}
               <Card className="mb-4">
                 <Card.Header>
                   <h5 className="mb-0">
                     <i className="bi bi-bar-chart me-2"></i>
-                    Emotion Breakdown
+                    Emotion Response Summary
                   </h5>
                 </Card.Header>
                 <Card.Body>
@@ -141,6 +193,33 @@ const FinalPage = () => {
                 </Card.Body>
               </Card>
 
+              {/* Individual Responses */}
+              <Card className="mb-4">
+                <Card.Header>
+                  <h6 className="mb-0">
+                    <i className="bi bi-list-ul me-2"></i>
+                    Individual Image Responses
+                  </h6>
+                </Card.Header>
+                <Card.Body>
+                  {results.reactions.map((reaction, index) => (
+                    <div key={index} className="border-bottom pb-3 mb-3 last:border-bottom-0 last:pb-0 last:mb-0">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Image {index + 1}: {reaction.imageId}</strong>
+                        <Badge bg={getEmotionColor(reaction.reaction)} className="text-capitalize">
+                          {reaction.reaction}
+                        </Badge>
+                      </div>
+                      {reaction.description && (
+                        <p className="text-muted mb-0 small">
+                          <em>"{reaction.description}"</em>
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </Card.Body>
+              </Card>
+
               {/* Session Info */}
               <Card className="mb-4">
                 <Card.Header>
@@ -156,15 +235,15 @@ const FinalPage = () => {
                         <strong>Participant:</strong> {state.profile.nickname}
                       </p>
                       <p className="mb-2">
-                        <strong>Frames Processed:</strong> {results.processedFrames}
+                        <strong>User ID:</strong> {state.profile.userId || 'N/A'}
                       </p>
                     </Col>
                     <Col sm={6}>
                       <p className="mb-2">
-                        <strong>Completed:</strong> {formatTimestamp(results.timestamp)}
+                        <strong>Images Processed:</strong> {results.totalImages}
                       </p>
                       <p className="mb-2">
-                        <strong>Comments:</strong> {state.comments.length}
+                        <strong>Completed:</strong> {formatTimestamp(new Date().toISOString())}
                       </p>
                     </Col>
                   </Row>
@@ -182,7 +261,7 @@ const FinalPage = () => {
                 className="px-4"
               >
                 <i className="bi bi-arrow-clockwise me-2"></i>
-                Start Over
+                Start New Assessment
               </Button>
               <Button
                 variant="primary"

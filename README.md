@@ -261,7 +261,9 @@ docker build -t emotions-recognition-fe .
 Once the image is built, you can run it as a container. This command will also load environment variables from the `.config` file and map port 80 of the container to port 80 on your host machine:
 
 ```sh
-docker run --env-file .config -p 80:80 emotions-recognition-fe
+docker run --env-file .config -p 443:443 emotions-recognition-fe
 ```
 
 You should then be able to access the application at [http://localhost:80](http://localhost:80).
+
+docker run -d --env-file .config --name emotions-fe-fixed --network emotions_recognition_default -p 443:443 -p 80:80  emotions-recognition-fe

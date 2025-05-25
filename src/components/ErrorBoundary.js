@@ -3,12 +3,10 @@ import { Alert } from 'react-bootstrap';
 
 const ErrorBoundary = ({ children, fallback = null }) => {
   const [hasError, setHasError] = React.useState(false);
-  const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
-    const handleError = (error) => {
+    const handleError = () => {
       setHasError(true);
-      setError(error);
     };
 
     window.addEventListener('error', handleError);

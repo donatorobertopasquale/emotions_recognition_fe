@@ -21,10 +21,8 @@ export const useWebcam = () => {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setIsStreaming(true);
-      }
-    } catch (err) {
+      }    } catch (err) {
       setError('Failed to access webcam: ' + err.message);
-      console.error('Webcam error:', err);
     }
   }, []);
 
@@ -37,30 +35,48 @@ export const useWebcam = () => {
       videoRef.current.srcObject = null;
     }
     setIsStreaming(false);
-  }, []);
-
-  const captureFrame = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) {
+  }, []);  const captureFrame = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current || !isStreaming) {
       return null;
     }
 
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    const context = canvas.getContext('2d');
+      // Check if video has valid dimensions
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      return null;
+    }
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0);
-
-    return canvas.toDataURL('image/jpeg', 0.8);
-  }, []);
-
+    try {
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);      return canvas.toDataURL('image/jpeg', 0.8);
+    } catch (error) {
+      return null;
+    }
+  }, [isStreaming]);
   const captureMultipleFrames = useCallback((count = WEBCAM_CONFIG.FRAME_COUNT) => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const frames = [];
       let capturedCount = 0;
+      let attempts = 0;
+      const maxAttempts = count * 5; // Allow 5 attempts per frame
 
       const captureInterval = setInterval(() => {
+        attempts++;
+        
+        // Check if we've exceeded max attempts
+        if (attempts > maxAttempts) {
+          clearInterval(captureInterval);
+          if (frames.length > 0) {
+            resolve(frames); // Return whatever frames we captured
+          } else {
+            reject(new Error('Failed to capture any frames after maximum attempts'));
+          }
+          return;
+        }
+
         const frame = captureFrame();
         if (frame) {
           frames.push({
@@ -76,6 +92,16 @@ export const useWebcam = () => {
           }
         }
       }, WEBCAM_CONFIG.CAPTURE_INTERVAL);
+
+      // Set a timeout as a fallback
+      setTimeout(() => {
+        clearInterval(captureInterval);
+        if (frames.length > 0) {
+          resolve(frames);
+        } else {
+          reject(new Error('Capture timeout - no frames captured'));
+        }
+      }, (count * WEBCAM_CONFIG.CAPTURE_INTERVAL * 2) + 5000); // Give extra time
     });
   }, [captureFrame]);
 

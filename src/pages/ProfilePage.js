@@ -9,11 +9,11 @@ import countryList from '../nationalities.js';
 import apiService from '../services/apiService';
 
 const ProfilePage = () => {
-    const { state, setProfile } = useAppContext();
+    const { state, setProfile, setImages } = useAppContext();
     const [localProfile, setLocalProfile] = useState(state.profile);
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const navigate = useNavigate();    const handleChange = (e) => {
+    const navigate = useNavigate();const handleChange = (e) => {
         const { name, value } = e.target;
         
         // Convert age to integer for number input
@@ -38,15 +38,25 @@ const ProfilePage = () => {
             setIsSubmitting(false);
             return;
         }        try {
-            // Submit profile to API
-            await apiService.submitProfile(localProfile);
-            
-            // Save profile to context after successful API call
-            setProfile(localProfile);
-            
-            navigate(ROUTES.IMAGE);
-        } catch (error) {
-            console.error('Profile submission error:', error);
+            // Submit profile to API (login endpoint)
+            const response = await apiService.submitProfile(localProfile);
+
+            // Extract userId and images from response
+            if (response && response.images && Array.isArray(response.images)) {
+                // Update profile with userId if provided
+                const updatedProfile = {
+                    ...localProfile,
+                    userId: response.userId || null
+                };
+                
+                // Save profile and images to context
+                setProfile(updatedProfile);
+                setImages(response.images);
+                
+                navigate(ROUTES.IMAGE);
+            } else {
+                throw new Error('Invalid response format from server');
+            }        } catch (error) {
             setErrors({ submit: 'Failed to save profile. Please try again.' });
         } finally {
             setIsSubmitting(false);

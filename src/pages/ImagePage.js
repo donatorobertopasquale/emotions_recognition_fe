@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Form, Button, Alert, Row, Col, ProgressBar } from 'react-bootstrap';
 import { useAppContext } from '../context/AppContext';
@@ -6,17 +6,23 @@ import { useWebcam } from '../hooks/useWebcam';
 import WebcamDisplay from '../components/WebcamDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ApiService from '../services/apiService';
-import { ROUTES, WEBCAM_CONFIG } from '../constants';
+import { ROUTES } from '../constants';
 
 const ImagePage = () => {
   const [comment, setComment] = useState('');
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [captureProgress, setCaptureProgress] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const [error, setError] = useState(null);
-  const [capturedFrames, setCapturedFrames] = useState([]);
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recordedVideo, setRecordedVideo] = useState(null);
   
-  const navigate = useNavigate();
-  const { state, addCapturedFrame, addComment } = useAppContext();
+  const navigate = useNavigate();  const { 
+    state, 
+    setCurrentImageIndex, 
+    addImageReaction
+  } = useAppContext();
   
   const {
     videoRef,
@@ -25,128 +31,187 @@ const ImagePage = () => {
     error: webcamError,
     startWebcam,
     stopWebcam,
-    captureMultipleFrames
   } = useWebcam();
 
-  // Redirect if no profile data
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+
+  // Redirect if no profile data or images
   useEffect(() => {
-    if (!state.profile.nickname) {
+    if (!state.profile.nickname || !state.images || state.images.length === 0) {
       navigate(ROUTES.PROFILE);
     }
-  }, [state.profile, navigate]);
+  }, [state.profile, state.images, navigate]);
 
+  // Start webcam
   useEffect(() => {
     startWebcam();
     return () => {
       stopWebcam();
     };
   }, [startWebcam, stopWebcam]);
+  // Load current image
+  useEffect(() => {
+    const loadCurrentImage = async () => {
+      if (state.images && state.images.length > 0 && state.currentImageIndex < state.images.length) {
+        setIsLoadingImage(true);
+        try {
+          const imageName = state.images[state.currentImageIndex];
+          const imageBlob = await ApiService.downloadImage(imageName);
+          const imageUrl = URL.createObjectURL(imageBlob);
+          setCurrentImageUrl(imageUrl);
+        } catch (err) {
+          setError(`Failed to load image: ${err.message}`);
+        } finally {
+          setIsLoadingImage(false);
+        }
+      }
+    };
 
-  const handleCapture = async () => {
+    loadCurrentImage();
+
+    // Cleanup previous image URL
+    return () => {
+      if (currentImageUrl) {
+        URL.revokeObjectURL(currentImageUrl);
+      }
+    };
+  }, [state.currentImageIndex, state.images, currentImageUrl]);
+
+  const startRecording = async () => {
     if (!isStreaming) {
       setError('Camera is not active. Please allow camera access and try again.');
       return;
     }
 
-    setIsCapturing(true);
-    setError(null);
-    setCaptureProgress(0);
-
     try {
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setCaptureProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 30;
-        });
-      }, WEBCAM_CONFIG.CAPTURE_INTERVAL / 3);
+      recordedChunksRef.current = [];
+      const stream = videoRef.current.srcObject;
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9'
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
 
-      const frames = await captureMultipleFrames();
-      clearInterval(progressInterval);
-      setCaptureProgress(100);
-      
-      setCapturedFrames(frames);
-      
-      // Add frames to global state
-      frames.forEach(frame => addCapturedFrame(frame));
-      
-      // Add comment if provided
-      if (comment.trim()) {
-        addComment({
-          text: comment.trim(),
-          timestamp: new Date().toISOString()
-        });
-      }
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
 
-      // Simulate API submission
-      setTimeout(() => {
-        handleNext();
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        setRecordedVideo(blob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      setError(null);
+
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(prev => prev + 1);
       }, 1000);
-      
+
     } catch (err) {
-      setError('Failed to capture images. Please try again.');
-      console.error('Capture error:', err);
-    } finally {
-      setIsCapturing(false);
+      setError(`Failed to start recording: ${err.message}`);
     }
   };
 
-  const handleNext = async () => {
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const handleSubmitReaction = async () => {
+    if (!recordedVideo) {
+      setError('Please record a video reaction first.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
     try {
-      // Submit to API (replace with actual implementation)
-      const response = await ApiService.submitRecognition(capturedFrames, comment);
+      // Call emotion prediction API
+      const emotionResponse = await ApiService.submitRecognition(recordedVideo);
       
-      if (response.code === 200) { // Temporary bypass for demo
-        navigate(ROUTES.FINAL);
+      const emotion = emotionResponse.emotion || 'unknown';
+      
+      // Store the reaction data
+      const reactionData = {
+        imageId: state.images[state.currentImageIndex],
+        description: comment.trim() || '',
+        reaction: emotion,
+        aiComment: emotion, // Using emotion as aiComment for now
+        videoBlob: recordedVideo, // Store for potential future use
+        timestamp: new Date().toISOString()
+      };
+
+      addImageReaction(reactionData);
+
+      // Move to next image or final page
+      const nextIndex = state.currentImageIndex + 1;
+      if (nextIndex < state.images.length) {
+        setCurrentImageIndex(nextIndex);
+        // Reset form for next image
+        setComment('');
+        setRecordedVideo(null);
+        setRecordingDuration(0);
       } else {
-        setError('Failed to process images. Please try again.');
+        // All images processed, go to final page
+        navigate(ROUTES.FINAL);
       }
+
     } catch (err) {
-      // For demo purposes, continue anyway
-      console.warn('API submission failed, continuing for demo:', err);
-      navigate(ROUTES.FINAL);
+      setError(`Failed to process reaction: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (isCapturing) {
-    return (
-      <Container className="py-5">
-        <Row className="justify-content-center">
-          <Col lg={6} className="text-center text-white">
-            <div className="mb-4">
-              <i className="bi bi-camera display-1 text-primary mb-3"></i>
-              <h3>Capturing Images...</h3>
-              <p className="text-muted">Please look at the camera and remain still</p>
-            </div>
-            <ProgressBar 
-              animated 
-              variant="primary" 
-              now={captureProgress} 
-              className="mb-3"
-              style={{ height: '8px' }}
-            />
-            <p className="small text-muted">
-              Capturing {WEBCAM_CONFIG.FRAME_COUNT} frames with {WEBCAM_CONFIG.CAPTURE_INTERVAL/1000}s intervals
-            </p>
-          </Col>
-        </Row>
-      </Container>
-    );
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (!state.images || state.images.length === 0) {
+    return <LoadingSpinner message="Loading images..." fullScreen />;
   }
+
+  if (isSubmitting) {
+    return <LoadingSpinner message="Processing your reaction..." fullScreen />;
+  }
+
+  const currentImageName = state.images[state.currentImageIndex];
+  const progress = ((state.currentImageIndex + 1) / state.images.length) * 100;
 
   return (
     <Container className="py-4">
       <Row className="justify-content-center">
-        <Col lg={8}>
+        <Col lg={10}>
           <div className="text-center text-white mb-4">
-            <h2 className="h3 mb-2">Emotion Capture</h2>
+            <h2 className="h3 mb-2">Image Reaction Capture</h2>
             <p className="text-muted">
-              We'll capture a few images to analyze your facial expressions. 
-              Please ensure good lighting and look directly at the camera.
+              Image {state.currentImageIndex + 1} of {state.images.length}
             </p>
+            <ProgressBar 
+              now={progress} 
+              className="mb-3"
+              style={{ height: '8px' }}
+              label={`${Math.round(progress)}%`}
+            />
           </div>
 
           {(error || webcamError) && (
@@ -157,118 +222,126 @@ const ImagePage = () => {
           )}
 
           <Row>
-            <Col lg={8}>
-              <WebcamDisplay
-                videoRef={videoRef}
-                canvasRef={canvasRef}
-                isStreaming={isStreaming}
-                className="mb-4"
-              />
+            {/* Image Display */}
+            <Col lg={6}>
+              <Card className="mb-4">
+                <Card.Header>
+                  <h5 className="mb-0">Current Image: {currentImageName}</h5>
+                </Card.Header>
+                <Card.Body className="text-center">
+                  {isLoadingImage ? (
+                    <div className="d-flex justify-content-center align-items-center" style={{ height: '300px' }}>
+                      <LoadingSpinner message="Loading image..." />
+                    </div>
+                  ) : currentImageUrl ? (                    <img
+                      src={currentImageUrl}
+                      alt={`Stimulus ${state.currentImageIndex + 1}`}
+                      className="img-fluid rounded"
+                      style={{ maxHeight: '400px', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <div className="text-muted">Failed to load image</div>
+                  )}
+                </Card.Body>
+              </Card>
             </Col>
-            <Col lg={4}>
-              <Card className="h-100">
-                <Card.Body className="d-flex flex-column">
-                  <h5 className="mb-3">Instructions</h5>
-                  <ul className="list-unstyled flex-grow-1">
-                    <li className="mb-2">
-                      <i className="bi bi-check-circle text-success me-2"></i>
-                      Look directly at the camera
-                    </li>
-                    <li className="mb-2">
-                      <i className="bi bi-check-circle text-success me-2"></i>
-                      Ensure good lighting
-                    </li>
-                    <li className="mb-2">
-                      <i className="bi bi-check-circle text-success me-2"></i>
-                      Stay still during capture
-                    </li>
-                    <li className="mb-2">
-                      <i className="bi bi-check-circle text-success me-2"></i>
-                      Express naturally
-                    </li>
-                  </ul>
+
+            {/* Video Recording */}
+            <Col lg={6}>
+              <Card className="mb-4">
+                <Card.Header>
+                  <h5 className="mb-0">Record Your Reaction</h5>
+                </Card.Header>
+                <Card.Body>
+                  <WebcamDisplay
+                    videoRef={videoRef}
+                    canvasRef={canvasRef}
+                    isStreaming={isStreaming}
+                    className="mb-3"
+                    style={{ maxHeight: '300px' }}
+                  />
                   
-                  <Form className="mt-3">
-                    <Form.Group className="mb-3">
-                      <Form.Label>Optional Comment</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        rows={3}
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        placeholder="How are you feeling right now? (optional)"
-                      />
-                    </Form.Group>
-                  </Form>
+                  <div className="text-center mb-3">
+                    {isRecording ? (
+                      <div>
+                        <div className="text-danger mb-2">
+                          <i className="bi bi-record-circle-fill me-2"></i>
+                          Recording: {formatTime(recordingDuration)}
+                        </div>
+                        <Button
+                          variant="danger"
+                          onClick={stopRecording}
+                          size="lg"
+                        >
+                          <i className="bi bi-stop-fill me-2"></i>
+                          Stop Recording
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        onClick={startRecording}
+                        disabled={!isStreaming || !currentImageUrl}
+                        size="lg"
+                      >
+                        <i className="bi bi-camera-video me-2"></i>
+                        Start Recording
+                      </Button>
+                    )}
+                  </div>
+
+                  {recordedVideo && (
+                    <Alert variant="success" className="text-center">
+                      <i className="bi bi-check-circle me-2"></i>
+                      Video recorded successfully ({formatTime(recordingDuration)})
+                    </Alert>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
           </Row>
 
-          {capturedFrames.length > 0 && (
-            <Card className="mt-4">
-              <Card.Header>
-                <h6 className="mb-0">Captured Frames ({capturedFrames.length})</h6>
-              </Card.Header>
-              <Card.Body>
-                <Row>
-                  {capturedFrames.map((frame, index) => (
-                    <Col key={index} xs={4} className="mb-3">
-                      <img
-                        src={frame.data}
-                        alt={`Captured frame ${index + 1}`}
-                        className="img-fluid rounded border"
-                      />
-                      <small className="text-muted d-block text-center mt-1">
-                        Frame {frame.frameNumber}
-                      </small>
-                    </Col>
-                  ))}
-                </Row>
-              </Card.Body>
-            </Card>
-          )}
+          {/* Comment Section */}
+          <Card className="mb-4">
+            <Card.Body>
+              <Form.Group className="mb-3">
+                <Form.Label>Your thoughts about this image (optional)</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Describe what you see or how you feel about this image..."
+                />
+              </Form.Group>
+            </Card.Body>
+          </Card>
 
-          <div className="text-center mt-4">
-            {capturedFrames.length === 0 ? (
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={handleCapture}
-                disabled={!isStreaming || isCapturing}
-                className="px-5"
-              >
-                <i className="bi bi-camera me-2"></i>
-                Capture Images
-              </Button>
-            ) : (
-              <div className="d-flex gap-3 justify-content-center">
-                <Button
-                  variant="outline-primary"
-                  onClick={() => {
-                    setCapturedFrames([]);
-                    setComment('');
-                  }}
-                >
-                  <i className="bi bi-arrow-clockwise me-2"></i>
-                  Capture Again
-                </Button>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={handleNext}
-                  className="px-5"
-                >
-                  Continue to Results
-                  <i className="bi bi-arrow-right ms-2"></i>
-                </Button>
-              </div>
-            )}
+          {/* Action Buttons */}
+          <div className="text-center">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleSubmitReaction}
+              disabled={!recordedVideo || isSubmitting}
+              className="px-5"
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  {state.currentImageIndex + 1 < state.images.length ? 'Next Image' : 'Complete Assessment'}                <i className="bi bi-arrow-right ms-2"></i>
+                </>
+              )}
+            </Button>
           </div>
         </Col>
       </Row>
     </Container>
-    );
+  );
 };
 
 export default ImagePage;

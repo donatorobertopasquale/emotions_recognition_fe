@@ -8,9 +8,11 @@ const initialState = {
     age: null,
     gender: '',
     nationality: '',
+    userId: null, // Store userId from login response
   },
-  capturedFrames: [],
-  comments: [],
+  images: [], // List of image names from login response
+  currentImageIndex: 0, // Track which image we're currently showing
+  imageReactions: [], // Store reactions for each image
   assessmentResults: null,
   isLoading: false,
   error: null
@@ -20,9 +22,9 @@ const initialState = {
 export const ACTION_TYPES = {
   SET_PROFILE: 'SET_PROFILE',
   UPDATE_PROFILE_FIELD: 'UPDATE_PROFILE_FIELD',
-  ADD_CAPTURED_FRAME: 'ADD_CAPTURED_FRAME',
-  SET_CAPTURED_FRAMES: 'SET_CAPTURED_FRAMES',
-  ADD_COMMENT: 'ADD_COMMENT',
+  SET_IMAGES: 'SET_IMAGES',
+  SET_CURRENT_IMAGE_INDEX: 'SET_CURRENT_IMAGE_INDEX',
+  ADD_IMAGE_REACTION: 'ADD_IMAGE_REACTION',
   SET_ASSESSMENT_RESULTS: 'SET_ASSESSMENT_RESULTS',
   SET_LOADING: 'SET_LOADING',
   SET_ERROR: 'SET_ERROR',
@@ -45,20 +47,20 @@ const appReducer = (state, action) => {
           [action.payload.field]: action.payload.value
         }
       };
-    case ACTION_TYPES.ADD_CAPTURED_FRAME:
+    case ACTION_TYPES.SET_IMAGES:
       return {
         ...state,
-        capturedFrames: [...state.capturedFrames, action.payload]
+        images: action.payload
       };
-    case ACTION_TYPES.SET_CAPTURED_FRAMES:
+    case ACTION_TYPES.SET_CURRENT_IMAGE_INDEX:
       return {
         ...state,
-        capturedFrames: action.payload
+        currentImageIndex: action.payload
       };
-    case ACTION_TYPES.ADD_COMMENT:
+    case ACTION_TYPES.ADD_IMAGE_REACTION:
       return {
         ...state,
-        comments: [...state.comments, action.payload]
+        imageReactions: [...state.imageReactions, action.payload]
       };
     case ACTION_TYPES.SET_ASSESSMENT_RESULTS:
       return {
@@ -88,7 +90,6 @@ const AppContext = createContext();
 // Provider component
 export const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-
   const value = {
     state,
     dispatch,
@@ -98,9 +99,9 @@ export const AppProvider = ({ children }) => {
       type: ACTION_TYPES.UPDATE_PROFILE_FIELD, 
       payload: { field, value } 
     }),
-    addCapturedFrame: (frame) => dispatch({ type: ACTION_TYPES.ADD_CAPTURED_FRAME, payload: frame }),
-    setCapturedFrames: (frames) => dispatch({ type: ACTION_TYPES.SET_CAPTURED_FRAMES, payload: frames }),
-    addComment: (comment) => dispatch({ type: ACTION_TYPES.ADD_COMMENT, payload: comment }),
+    setImages: (images) => dispatch({ type: ACTION_TYPES.SET_IMAGES, payload: images }),
+    setCurrentImageIndex: (index) => dispatch({ type: ACTION_TYPES.SET_CURRENT_IMAGE_INDEX, payload: index }),
+    addImageReaction: (reaction) => dispatch({ type: ACTION_TYPES.ADD_IMAGE_REACTION, payload: reaction }),
     setAssessmentResults: (results) => dispatch({ type: ACTION_TYPES.SET_ASSESSMENT_RESULTS, payload: results }),
     setLoading: (loading) => dispatch({ type: ACTION_TYPES.SET_LOADING, payload: loading }),
     setError: (error) => dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error }),
