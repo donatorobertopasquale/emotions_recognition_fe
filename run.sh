@@ -6,6 +6,15 @@ BACKEND_ORIGIN=${BACKEND_ORIGIN:-http://localhost:5000/api/}
 
 echo "Setting backend address to: $BACKEND_ORIGIN"
 
+USE_HTTPS=${USE_HTTPS:-true}
+
+if [ "$USE_HTTPS" = "true" ]; then
+    cp /etc/nginx/nginx_ssl.conf /etc/nginx/nginx.conf
+else
+    rm -f /etc/nginx/nginx_ssl.conf
+    rm -rf /etc/nginx/ssl
+fi
+
 # Replace the placeholder in nginx.conf
 sed -i "s|__backend_address__|$BACKEND_ORIGIN|g" /etc/nginx/nginx.conf
 
