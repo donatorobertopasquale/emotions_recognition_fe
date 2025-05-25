@@ -1,21 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 import './index.css';
-import ProfilePage from './pages/ProfilePage';
-import ImagePage from './pages/ImagePage';
-import FinalPage from './pages/FinalPage';
-
-const App = () => (
-  <Router>
-    <Routes>
-      <Route path="/" element={<ProfilePage />} />
-      <Route path="/image" element={<ImagePage />} />
-      <Route path="/final" element={<FinalPage />} />
-    </Routes>
-  </Router>
-);
+import './styles/global.css';
+import App from './App';
+import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();

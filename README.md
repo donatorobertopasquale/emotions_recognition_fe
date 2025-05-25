@@ -1,4 +1,179 @@
-# Getting Started with Create React App
+# Emotion Recognition Frontend
+
+A modern React application for emotion recognition using facial analysis technology.
+
+## 🚀 Features
+
+- **User Profile Management**: Secure demographic data collection
+- **Real-time Webcam Integration**: Live video capture with multiple frame sampling  
+- **Emotion Analysis**: Advanced facial expression recognition
+- **Responsive Design**: Mobile-first approach with Bootstrap integration
+- **Error Handling**: Comprehensive error boundaries and user feedback
+- **State Management**: Context API for global state management
+- **Modern Architecture**: Clean, scalable folder structure
+
+## 🏗️ Project Structure
+
+``` bash
+src/
+├── components/          # Reusable UI components
+│   ├── ErrorBoundary.js    # Error handling wrapper
+│   ├── LoadingSpinner.js   # Loading states
+│   ├── WebcamDisplay.js    # Camera component
+│   ├── AppNavbar.js        # Navigation
+│   └── index.js            # Component exports
+├── context/             # Global state management
+│   └── AppContext.js       # Main application context
+├── hooks/               # Custom React hooks
+│   ├── useWebcam.js        # Webcam functionality
+│   └── index.js            # Hook utilities
+├── pages/               # Page components
+│   ├── HomePage.js         # Landing page
+│   ├── ProfilePage.js      # User profile form
+│   ├── ImagePage.js        # Camera capture
+│   └── FinalPage.js        # Results display
+├── services/            # API services
+│   └── apiService.js       # HTTP client
+├── utils/               # Utility functions
+│   └── helpers.js          # Common utilities
+├── constants/           # Application constants
+│   └── index.js            # Constants and enums
+├── styles/              # Global styles
+│   └── global.css          # Custom CSS
+└── assets/              # Static assets
+    ├── images/
+    └── icons/
+```
+
+## 🛠️ Technologies Used
+
+- **React 19.1.0**: Latest React with concurrent features
+- **React Router**: Client-side routing
+- **React Bootstrap**: UI component library
+- **Bootstrap Icons**: Icon library (install with `npm install bootstrap-icons`)
+- **Context API**: State management
+- **Modern JavaScript**: ES6+ features
+
+## 📱 Key Components
+
+### 1. Context & State Management
+
+- **AppContext**: Centralized state management with useReducer
+- **Actions**: Predefined action types for state updates
+- **Custom hooks**: Easy access to context throughout the app
+
+### 2. Custom Hooks
+
+- **useWebcam**: Complete webcam functionality with error handling
+- **useLocalStorage**: Persistent storage management
+- **useDebounce**: Performance optimization for inputs
+- **useAsync**: Async operation handling
+
+### 3. Reusable Components
+
+- **ErrorBoundary**: Graceful error handling
+- **LoadingSpinner**: Consistent loading states
+- **WebcamDisplay**: Professional camera interface
+- **AppNavbar**: Responsive navigation
+
+### 4. Utility Functions
+
+- **Validation**: Email and profile validation
+- **Helpers**: Date formatting, session management
+- **Browser Support**: Feature detection
+- **Data Conversion**: Image processing utilities
+
+## 🚦 Installation & Setup
+
+### Prerequisites
+
+- Node.js (v16 or higher)
+- npm or yarn
+- Modern browser with camera support
+
+### Quick Start
+
+```bash
+# Install dependencies (note: npm may need to be installed first)
+npm install bootstrap-icons
+
+# Start development server  
+npm start
+```
+
+### Environment Configuration
+
+Create a `.env` file:
+
+```env
+REACT_APP_API_URL=http://localhost:3001
+REACT_APP_WEBCAM_TIMEOUT=10000
+REACT_APP_CAPTURE_INTERVAL=2000
+```
+
+## 🎯 Usage Flow
+
+1. **Home Page** (`/`): Welcome screen with instructions
+2. **Profile Page** (`/profile`): User demographic data collection
+3. **Image Page** (`/image`): Camera capture with real-time preview
+4. **Final Page** (`/final`): Results display with emotion breakdown
+
+## 🔧 Architecture Benefits
+
+### Scalability
+
+- Modular component structure
+- Centralized state management
+- Reusable utility functions
+- Clear separation of concerns
+
+### Maintainability  
+
+- Consistent naming conventions
+- Comprehensive error handling
+- Type-safe constants
+- Documentation and comments
+
+### Performance
+
+- Optimized rendering with Context API
+- Debounced inputs
+- Lazy loading capabilities
+- Memory leak prevention
+
+### User Experience
+
+- Responsive design
+- Loading states
+- Error feedback
+- Accessibility features
+
+## 🛡️ Error Handling
+
+The application includes comprehensive error handling:
+
+- **ErrorBoundary**: Catches and displays React errors
+- **Form Validation**: Real-time input validation
+- **API Error Handling**: Graceful fallbacks for network issues
+- **Browser Compatibility**: Feature detection and warnings
+
+## 🎨 Styling System
+
+- **Global Variables**: CSS custom properties for theming
+- **Bootstrap Integration**: Consistent component styling
+- **Responsive Design**: Mobile-first approach
+- **Custom Animations**: Smooth transitions and loading states
+
+## 🔒 Security Features
+
+- Input sanitization and validation
+- Secure camera permission handling
+- No sensitive data persistence
+- Error message sanitization
+
+---
+
+## Original Create React App Documentation
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
