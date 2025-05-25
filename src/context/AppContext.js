@@ -5,7 +5,7 @@ const initialState = {
   profile: {
     nickname: '',
     email: '',
-    age: '',
+    age: null,
     gender: '',
     nationality: '',
   },

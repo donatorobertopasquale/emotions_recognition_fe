@@ -1,3 +1,5 @@
+import { AGE_CONSTRAINTS } from '../constants';
+
 /**
  * Validates email format
  */
@@ -22,8 +24,8 @@ export const validateProfile = (profile) => {
     errors.email = 'Please enter a valid email address';
   }
 
-  if (!profile.age) {
-    errors.age = 'Age range is required';
+  if (!profile.age || !Number.isInteger(profile.age) || profile.age < AGE_CONSTRAINTS.MIN || profile.age > AGE_CONSTRAINTS.MAX) {
+    errors.age = `Age is required and must be between ${AGE_CONSTRAINTS.MIN} and ${AGE_CONSTRAINTS.MAX}`;
   }
 
   if (!profile.gender) {

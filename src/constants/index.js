@@ -1,8 +1,9 @@
 // API endpoints
 export const API_ENDPOINTS = {
-  RECOGNITION: '/api/recognition',
-  PROFILE: '/api/profile',
-  SUBMIT_ASSESSMENT: '/api/assessment'
+  RECOGNITION: '/api/classifier/predict',
+  PROFILE: '/api/v1/login',
+  IMAGE: '/api/v1/download-image',
+  SUBMIT_ASSESSMENT: '/api/v1/register-result'
 };
 
 // Application routes
@@ -21,15 +22,11 @@ export const GENDER_OPTIONS = [
   { value: 'prefer-not-to-say', label: 'Prefer not to say' }
 ];
 
-// Age ranges
-export const AGE_RANGES = [
-  { value: '18-25', label: '18-25' },
-  { value: '26-35', label: '26-35' },
-  { value: '36-45', label: '36-45' },
-  { value: '46-55', label: '46-55' },
-  { value: '56-65', label: '56-65' },
-  { value: '65+', label: '65+' }
-];
+// Age constraints
+export const AGE_CONSTRAINTS = {
+  MIN: 5,
+  MAX: 110
+};
 
 // Emotion categories
 export const EMOTIONS = {

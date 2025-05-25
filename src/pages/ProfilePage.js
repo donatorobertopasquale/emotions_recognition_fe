@@ -4,19 +4,22 @@ import { Container, Form, Button, Card, Alert, Row, Col } from 'react-bootstrap'
 import { useAppContext } from '../context/AppContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { validateProfile } from '../utils/helpers';
-import { ROUTES, GENDER_OPTIONS, AGE_RANGES } from '../constants';
-import countryList from '../nationalities.js'; 
+import { ROUTES, GENDER_OPTIONS, AGE_CONSTRAINTS } from '../constants';
+import countryList from '../nationalities.js';
+import apiService from '../services/apiService';
 
 const ProfilePage = () => {
     const { state, setProfile } = useAppContext();
     const [localProfile, setLocalProfile] = useState(state.profile);
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const navigate = useNavigate();
-
-    const handleChange = (e) => {
+    const navigate = useNavigate();    const handleChange = (e) => {
         const { name, value } = e.target;
-        setLocalProfile({ ...localProfile, [name]: value });
+        
+        // Convert age to integer for number input
+        const processedValue = name === 'age' ? (value === '' ? null : parseInt(value, 10)) : value;
+        
+        setLocalProfile({ ...localProfile, [name]: processedValue });
         
         // Clear error for this field when user starts typing
         if (errors[name]) {
@@ -34,14 +37,12 @@ const ProfilePage = () => {
             setErrors(validation.errors);
             setIsSubmitting(false);
             return;
-        }
-
-        try {
-            // Save profile to context
-            setProfile(localProfile);
+        }        try {
+            // Submit profile to API
+            await apiService.submitProfile(localProfile);
             
-            // Simulate API call (replace with actual API call)
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Save profile to context after successful API call
+            setProfile(localProfile);
             
             navigate(ROUTES.IMAGE);
         } catch (error) {
@@ -105,26 +106,24 @@ const ProfilePage = () => {
                                     <Form.Control.Feedback type="invalid">
                                         {errors.email}
                                     </Form.Control.Feedback>
-                                </Form.Group>
-
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Age Range <span className="text-danger">*</span></Form.Label>
-                                    <Form.Select
+                                </Form.Group>                                <Form.Group className="mb-3">
+                                    <Form.Label>Age <span className="text-danger">*</span></Form.Label>
+                                    <Form.Control
+                                        type="number"
                                         name="age"
-                                        value={localProfile.age}
+                                        value={localProfile.age || ''}
                                         onChange={handleChange}
                                         isInvalid={!!errors.age}
-                                    >
-                                        <option value="">Select age range</option>
-                                        {AGE_RANGES.map((range) => (
-                                            <option key={range.value} value={range.value}>
-                                                {range.label}
-                                            </option>
-                                        ))}
-                                    </Form.Select>
+                                        placeholder="Enter your age"
+                                        min={AGE_CONSTRAINTS.MIN}
+                                        max={AGE_CONSTRAINTS.MAX}
+                                    />
                                     <Form.Control.Feedback type="invalid">
                                         {errors.age}
                                     </Form.Control.Feedback>
+                                    <Form.Text className="text-muted">
+                                        Age must be between {AGE_CONSTRAINTS.MIN} and {AGE_CONSTRAINTS.MAX}
+                                    </Form.Text>
                                 </Form.Group>
 
                                 <Form.Group className="mb-3">

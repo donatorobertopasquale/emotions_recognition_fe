@@ -99,7 +99,7 @@ const ImagePage = () => {
       // Submit to API (replace with actual implementation)
       const response = await ApiService.submitRecognition(capturedFrames, comment);
       
-      if (response.code === 0 || true) { // Temporary bypass for demo
+      if (response.code === 200) { // Temporary bypass for demo
         navigate(ROUTES.FINAL);
       } else {
         setError('Failed to process images. Please try again.');
