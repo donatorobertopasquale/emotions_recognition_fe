@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 
+// Export custom hooks
+export { useWebcam } from './useWebcam';
+export { useAuth } from './useAuth';
+
 /**
  * Custom hook for managing local storage
  */
@@ -7,8 +11,8 @@ export const useLocalStorage = (key, initialValue) => {
   const [storedValue, setStoredValue] = useState(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
+      return item ? JSON.parse(item) : initialValue;    } catch (error) {
+      // eslint-disable-next-line no-console
       console.error(`Error reading localStorage key "${key}":`, error);
       return initialValue;
     }
@@ -18,8 +22,8 @@ export const useLocalStorage = (key, initialValue) => {
     try {
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));    } catch (error) {
+      // eslint-disable-next-line no-console
       console.error(`Error setting localStorage key "${key}":`, error);
     }
   };
@@ -100,6 +104,7 @@ export const useAsync = (asyncFunction, dependencies = []) => {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, dependencies);
 
   return { data, loading, error };

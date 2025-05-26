@@ -1,7 +1,7 @@
 
 FROM node:20-alpine AS build
 
-# Set working directory in aria's home
+# Set working directory
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci

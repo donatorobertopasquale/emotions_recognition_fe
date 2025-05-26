@@ -4,3 +4,4 @@ export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as WebcamDisplay } from './WebcamDisplay';
 export { default as AppNavbar } from './AppNavbar';
 export { default as NotificationSystem } from './NotificationSystem';
+export { default as ProtectedRoute } from './ProtectedRoute';

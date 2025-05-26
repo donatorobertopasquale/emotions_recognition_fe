@@ -77,12 +77,9 @@ const HomePage = () => {
                       please use a modern browser with camera access enabled.
                     </p>
                   </div>
-                </div>
-              </Card.Body>
+                </div>              </Card.Body>
             </Card>
-          )}
-
-          <div className="text-center">
+          )}          <div className="text-center">
             <Button 
               variant="primary" 
               size="lg" 

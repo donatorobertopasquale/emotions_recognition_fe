@@ -36,13 +36,12 @@ const ImagePage = () => {
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
-
   // Redirect if no profile data or images
   useEffect(() => {
-    if (!state.profile.nickname || !state.images || state.images.length === 0) {
-      navigate(ROUTES.PROFILE);
+    if (!state.profile.nickname || !state.images || state.images.length === 0 || !state.isAuthenticated) {
+      navigate(ROUTES.HOME);
     }
-  }, [state.profile, state.images, navigate]);
+  }, [state.profile, state.images, state.isAuthenticated, navigate]);
 
   // Start webcam
   useEffect(() => {
@@ -50,8 +49,7 @@ const ImagePage = () => {
     return () => {
       stopWebcam();
     };
-  }, [startWebcam, stopWebcam]);
-  // Load current image
+  }, [startWebcam, stopWebcam]);  // Load current image
   useEffect(() => {
     const loadCurrentImage = async () => {
       if (state.images && state.images.length > 0 && state.currentImageIndex < state.images.length) {
@@ -62,7 +60,13 @@ const ImagePage = () => {
           const imageUrl = URL.createObjectURL(imageBlob);
           setCurrentImageUrl(imageUrl);
         } catch (err) {
-          setError(`Failed to load image: ${err.message}`);
+          // Handle authentication errors specifically
+          if (err.message.includes('Session expired') || err.message.includes('log in again')) {
+            setError('Your session has expired. Redirecting to home page...');
+            setTimeout(() => navigate(ROUTES.HOME), 2000);
+          } else {
+            setError(`Failed to load image: ${err.message}`);
+          }
         } finally {
           setIsLoadingImage(false);
         }
@@ -70,14 +74,16 @@ const ImagePage = () => {
     };
 
     loadCurrentImage();
-
-    // Cleanup previous image URL
+  }, [state.currentImageIndex, state.images, navigate]);
+  // Cleanup image URL when component unmounts or currentImageUrl changes
+  useEffect(() => {
     return () => {
       if (currentImageUrl) {
         URL.revokeObjectURL(currentImageUrl);
       }
     };
-  }, [state.currentImageIndex, state.images, currentImageUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentImageUrl]);
 
   const startRecording = async () => {
     if (!isStreaming) {
@@ -140,9 +146,7 @@ const ImagePage = () => {
     }
 
     setIsSubmitting(true);
-    setError(null);
-
-    try {
+    setError(null);    try {
       // Call emotion prediction API
       const emotionResponse = await ApiService.submitRecognition(recordedVideo);
       
@@ -174,7 +178,13 @@ const ImagePage = () => {
       }
 
     } catch (err) {
-      setError(`Failed to process reaction: ${err.message}`);
+      // Handle authentication errors specifically
+      if (err.message.includes('Session expired') || err.message.includes('log in again')) {
+        setError('Your session has expired. Redirecting to home page...');
+        setTimeout(() => navigate(ROUTES.HOME), 2000);
+      } else {
+        setError(`Failed to process reaction: ${err.message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }

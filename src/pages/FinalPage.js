@@ -12,12 +12,11 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
   const [results, setResults] = useState(null);
   const navigate = useNavigate();
   const { state, resetState } = useAppContext();
-
   useEffect(() => {
     const submitAssessment = async () => {
-      // Redirect if no data to submit
-      if (!state.profile.userId || !state.imageReactions || state.imageReactions.length === 0) {
-        navigate(ROUTES.PROFILE);
+      // Redirect if no data to submit or not authenticated
+      if (!state.profile.userId || !state.imageReactions || state.imageReactions.length === 0 || !state.isAuthenticated) {
+        navigate(ROUTES.HOME);
         return;
       }
 
@@ -61,7 +60,13 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
         Object.keys(emotionCounts).forEach(emotion => {
           resultsData.emotionBreakdown[emotion] = (emotionCounts[emotion] / totalReactions) * 100;
         });        setResults(resultsData);      } catch (error) {
-        setSubmissionError(error.message || 'Failed to submit assessment');
+        // Handle authentication errors specifically
+        if (error.message.includes('Session expired') || error.message.includes('log in again')) {
+          setSubmissionError('Your session has expired. Redirecting to home page...');
+          setTimeout(() => navigate(ROUTES.HOME), 2000);
+        } else {
+          setSubmissionError(error.message || 'Failed to submit assessment');
+        }
       } finally {
         setIsSubmitting(false);
       }

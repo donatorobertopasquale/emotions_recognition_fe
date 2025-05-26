@@ -15,7 +15,8 @@ const initialState = {
   imageReactions: [], // Store reactions for each image
   assessmentResults: null,
   isLoading: false,
-  error: null
+  error: null,
+  isAuthenticated: false, // Track authentication status
 };
 
 // Action types
@@ -28,6 +29,7 @@ export const ACTION_TYPES = {
   SET_ASSESSMENT_RESULTS: 'SET_ASSESSMENT_RESULTS',
   SET_LOADING: 'SET_LOADING',
   SET_ERROR: 'SET_ERROR',
+  SET_AUTHENTICATED: 'SET_AUTHENTICATED',
   RESET_STATE: 'RESET_STATE'
 };
 
@@ -71,11 +73,15 @@ const appReducer = (state, action) => {
       return {
         ...state,
         isLoading: action.payload
-      };
-    case ACTION_TYPES.SET_ERROR:
+      };    case ACTION_TYPES.SET_ERROR:
       return {
         ...state,
         error: action.payload
+      };
+    case ACTION_TYPES.SET_AUTHENTICATED:
+      return {
+        ...state,
+        isAuthenticated: action.payload
       };
     case ACTION_TYPES.RESET_STATE:
       return initialState;
@@ -101,10 +107,10 @@ export const AppProvider = ({ children }) => {
     }),
     setImages: (images) => dispatch({ type: ACTION_TYPES.SET_IMAGES, payload: images }),
     setCurrentImageIndex: (index) => dispatch({ type: ACTION_TYPES.SET_CURRENT_IMAGE_INDEX, payload: index }),
-    addImageReaction: (reaction) => dispatch({ type: ACTION_TYPES.ADD_IMAGE_REACTION, payload: reaction }),
-    setAssessmentResults: (results) => dispatch({ type: ACTION_TYPES.SET_ASSESSMENT_RESULTS, payload: results }),
+    addImageReaction: (reaction) => dispatch({ type: ACTION_TYPES.ADD_IMAGE_REACTION, payload: reaction }),    setAssessmentResults: (results) => dispatch({ type: ACTION_TYPES.SET_ASSESSMENT_RESULTS, payload: results }),
     setLoading: (loading) => dispatch({ type: ACTION_TYPES.SET_LOADING, payload: loading }),
     setError: (error) => dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error }),
+    setAuthenticated: (authenticated) => dispatch({ type: ACTION_TYPES.SET_AUTHENTICATED, payload: authenticated }),
     resetState: () => dispatch({ type: ACTION_TYPES.RESET_STATE })
   };
 

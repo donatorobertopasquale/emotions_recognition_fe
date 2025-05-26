@@ -9,11 +9,12 @@ import countryList from '../nationalities.js';
 import apiService from '../services/apiService';
 
 const ProfilePage = () => {
-    const { state, setProfile, setImages } = useAppContext();
+    const { state, setProfile, setImages, setAuthenticated } = useAppContext();
     const [localProfile, setLocalProfile] = useState(state.profile);
-    const [errors, setErrors] = useState({});
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const navigate = useNavigate();const handleChange = (e) => {
+    const [errors, setErrors] = useState({});    const [isSubmitting, setIsSubmitting] = useState(false);
+    const navigate = useNavigate();
+
+    const handleChange = (e) => {
         const { name, value } = e.target;
         
         // Convert age to integer for number input
@@ -29,34 +30,37 @@ const ProfilePage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-
-        const validation = validateProfile(localProfile);
+        setIsSubmitting(true);        const validation = validateProfile(localProfile);
         
         if (!validation.isValid) {
             setErrors(validation.errors);
             setIsSubmitting(false);
             return;
-        }        try {
+        }
+        
+        try {
             // Submit profile to API (login endpoint)
             const response = await apiService.submitProfile(localProfile);
 
             // Extract userId and images from response
-            if (response && response.images && Array.isArray(response.images)) {
+            if (response && response.imagesName && Array.isArray(response.imagesName)) {
                 // Update profile with userId if provided
                 const updatedProfile = {
                     ...localProfile,
-                    userId: response.userId || null
-                };
+                    userId: response.userId || null                };
                 
                 // Save profile and images to context
                 setProfile(updatedProfile);
-                setImages(response.images);
+                setImages(response.imagesName);
+                setAuthenticated(true); // Set authentication status
                 
-                navigate(ROUTES.IMAGE);
-            } else {
+                // Use setTimeout to ensure state updates are completed before navigation
+                setTimeout(() => {
+                    navigate(ROUTES.IMAGE);
+                }, 0);            } else {
                 throw new Error('Invalid response format from server');
-            }        } catch (error) {
+            }
+        } catch (error) {
             setErrors({ submit: 'Failed to save profile. Please try again.' });
         } finally {
             setIsSubmitting(false);
