@@ -264,6 +264,21 @@ Once the image is built, you can run it as a container. This command will also l
 docker run --env-file .config -p 443:443 emotions-recognition-fe
 ```
 
-You should then be able to access the application at [http://localhost:80](http://localhost:80).
+You should then be able to access the application at [https://127.0.0.1](https://127.0.0.1).
 
 docker run -d --env-file .config --name emotions-fe-fixed --network emotions_recognition_default -p 443:443 -p 80:80  emotions-recognition-fe
+
+# Quick start for development
+make dev
+
+# Full production deployment
+make deploy
+
+# Docker-only deployment
+make setup-docker && make docker-run-detached
+
+# Check status
+make status
+
+# Clean everything
+make clean-all
