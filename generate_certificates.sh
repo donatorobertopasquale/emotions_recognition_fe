@@ -1,7 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-CERT_DIR="$(dirname "$0")/ssl"
+# Use /etc/nginx/ssl as the certificate directory for Docker builds
+CERT_DIR="${CERT_DIR:-/etc/nginx/ssl}"
 mkdir -p "$CERT_DIR"
 
 if [ ! -f "$CERT_DIR/fullchain.pem" ] || [ ! -f "$CERT_DIR/privkey.pem" ]; then

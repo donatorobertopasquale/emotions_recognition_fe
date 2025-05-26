@@ -1,0 +1,26 @@
+# Node modules
+node_modules/
+npm-debug.log*
+
+# SSL certificates (generated during build)
+ssl/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+TESTING_GUIDE.md
+PROJECT_UPGRADE_SUMMARY.md
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+Thumbs.db
