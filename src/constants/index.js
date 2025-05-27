@@ -1,6 +1,6 @@
 // API endpoints
 export const API_ENDPOINTS = {
-  RECOGNITION: '/api/classifier/predict',
+  RECOGNITION: '/api/classifier/predict/',
   PROFILE: '/api/v1/login',
   IMAGE: '/api/v1/download-image',
   SUBMIT_ASSESSMENT: '/api/v1/register-result'
