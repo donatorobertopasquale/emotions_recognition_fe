@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Card, Form, Button, Alert, Row, Col, ProgressBar } from 'react-bootstrap';
 import { useAppContext } from '../context/AppContext';
@@ -10,6 +10,7 @@ import { ROUTES } from '../constants';
 
 const ImagePage = () => {
   const [comment, setComment] = useState('');
+  const [selectedEmotions, setSelectedEmotions] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [error, setError] = useState(null);
@@ -27,6 +28,7 @@ const ImagePage = () => {
   const {
     videoRef,
     canvasRef,
+    streamRef,
     isStreaming,
     error: webcamError,
     startWebcam,
@@ -36,6 +38,30 @@ const ImagePage = () => {
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
+  const autoStopTimerRef = useRef(null);
+
+  // Available emotion options
+  const emotionOptions = [
+    { value: 'happy', emoji: '😊', label: 'Happy' },
+    { value: 'surprise', emoji: '😲', label: 'Surprise' },
+    { value: 'sad', emoji: '😢', label: 'Sad' },
+    { value: 'anger', emoji: '😠', label: 'Anger' },
+    { value: 'disgust', emoji: '🤢', label: 'Disgust' },
+    { value: 'fear', emoji: '😨', label: 'Fear' },
+    { value: 'neutral', emoji: '😐', label: 'Neutral' }
+  ];
+
+  // Handle emotion selection
+  const handleEmotionToggle = (emotionValue) => {
+    setSelectedEmotions(prev => {
+      if (prev.includes(emotionValue)) {
+        return prev.filter(emotion => emotion !== emotionValue);
+      } else {
+        return [...prev, emotionValue];
+      }
+    });
+  };
+  
   // Redirect if no profile data or images
   useEffect(() => {
     if (!state.profile.nickname || !state.images || state.images.length === 0 || !state.isAuthenticated) {
@@ -75,30 +101,57 @@ const ImagePage = () => {
 
     loadCurrentImage();
   }, [state.currentImageIndex, state.images, navigate]);
-  // Cleanup image URL when component unmounts or currentImageUrl changes
-  useEffect(() => {
-    return () => {
-      if (currentImageUrl) {
-        URL.revokeObjectURL(currentImageUrl);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentImageUrl]);
 
-  const startRecording = async () => {
-    if (!isStreaming) {
+  // Reset state when moving to next image
+  useEffect(() => {
+    const resetStateForNewImage = () => {
+      // Stop any ongoing recording
+      if (isRecording) {
+        stopRecording();
+      }
+      
+      // Reset all state for new image
+      setRecordedVideo(null);
+      setRecordingDuration(0);
+      setComment('');
+      setSelectedEmotions([]);
+      setError(null);
+    };
+
+    resetStateForNewImage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.currentImageIndex]); // Only trigger when currentImageIndex changes
+
+  const startRecording = useCallback(async () => {
+    if (!isStreaming || !streamRef.current) {
       setError('Camera is not active. Please allow camera access and try again.');
       return;
     }
 
     try {
       recordedChunksRef.current = [];
-      const stream = videoRef.current.srcObject;
+      const stream = streamRef.current;
       
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
-      });
+      // Check if stream is still active
+      const videoTracks = stream.getVideoTracks();
+      if (videoTracks.length === 0 || videoTracks[0].readyState !== 'live') {
+        setError('Camera stream is not available. Please refresh and try again.');
+        return;
+      }
       
+      // Try different codec options based on browser support
+      let mediaRecorderOptions;
+      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        mediaRecorderOptions = { mimeType: 'video/webm;codecs=vp9' };
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+        mediaRecorderOptions = { mimeType: 'video/webm;codecs=vp8' };
+      } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        mediaRecorderOptions = { mimeType: 'video/webm' };
+      } else {
+        mediaRecorderOptions = {}; // Use default
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, mediaRecorderOptions);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -108,8 +161,19 @@ const ImagePage = () => {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const blob = new Blob(recordedChunksRef.current, { 
+          type: mediaRecorderOptions.mimeType || 'video/webm' 
+        });
         setRecordedVideo(blob);
+      };
+
+      mediaRecorder.onerror = (event) => {
+        setError(`Recording error: ${event.error?.message || 'Unknown error'}`);
+        setIsRecording(false);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
       };
 
       mediaRecorder.start();
@@ -122,10 +186,63 @@ const ImagePage = () => {
         setRecordingDuration(prev => prev + 1);
       }, 1000);
 
+      // Auto-stop recording after 4 seconds
+      autoStopTimerRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          stopRecording();
+        }
+      }, 4000);
+
     } catch (err) {
       setError(`Failed to start recording: ${err.message}`);
     }
-  };
+  }, [isStreaming, streamRef]);
+
+  // Auto-start recording when conditions are met
+  useEffect(() => {
+    const autoStartRecording = () => {
+      const canStartRecording = currentImageUrl && 
+                               isStreaming && 
+                               !isRecording && 
+                               !recordedVideo;
+
+      if (canStartRecording) {
+        // Small delay to ensure everything is ready
+        const timer = setTimeout(() => {
+          // Double check to prevent race conditions
+          if (!isRecording && !recordedVideo) {
+            startRecording();
+          }
+        }, 500);
+
+        return () => clearTimeout(timer);
+      }
+    };
+
+    const cleanup = autoStartRecording();
+    return cleanup;
+  }, [currentImageUrl, isStreaming, isRecording, recordedVideo, startRecording]);
+  // Cleanup image URL when component unmounts or currentImageUrl changes
+  useEffect(() => {
+    return () => {
+      if (currentImageUrl) {
+        URL.revokeObjectURL(currentImageUrl);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentImageUrl]);
+
+  // Cleanup timers on component unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      if (autoStopTimerRef.current) {
+        clearTimeout(autoStopTimerRef.current);
+      }
+    };
+  }, []);
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -137,48 +254,64 @@ const ImagePage = () => {
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
+    
+    // Clear auto-stop timer
+    if (autoStopTimerRef.current) {
+      clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
+    }
   };
 
   const handleSubmitReaction = async () => {
-    if (!recordedVideo) {
-      setError('Please record a video reaction first.');
-      return;
-    }
+    try {
+      // Auto-stop recording if still recording
+      if (isRecording) {
+        stopRecording();
+        // Wait for recording to finish processing
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
-    setIsSubmitting(true);
-    setError(null);    try {
-      // Call emotion prediction API
+      // Check if we have a recorded video after stopping
+      if (!recordedVideo) {
+        setError('Recording is still processing. Please wait a moment and try again.');
+        return;
+      }
+
+      // Validation for required fields
+      if (selectedEmotions.length === 0) {
+        setError('Please select at least one emotion that describes how this image makes you feel.');
+        return;
+      }
+
+      setIsSubmitting(true);
+      setError(null);
+
+      // Submit to API
       const emotionResponse = await ApiService.submitRecognition(recordedVideo);
-      
       const emotion = emotionResponse.emotion || 'unknown';
       
-      // Store the reaction data
+      // Store reaction data
       const reactionData = {
         imageId: state.images[state.currentImageIndex],
         description: comment.trim() || '',
-        reaction: emotion,
-        aiComment: emotion, // Using emotion as aiComment for now
-        videoBlob: recordedVideo, // Store for potential future use
+        reaction: selectedEmotions,
+        aiComment: emotion,
+        videoBlob: recordedVideo,
         timestamp: new Date().toISOString()
       };
 
       addImageReaction(reactionData);
 
-      // Move to next image or final page
+      // Navigate to next image or final page
       const nextIndex = state.currentImageIndex + 1;
       if (nextIndex < state.images.length) {
         setCurrentImageIndex(nextIndex);
-        // Reset form for next image
-        setComment('');
-        setRecordedVideo(null);
-        setRecordingDuration(0);
       } else {
-        // All images processed, go to final page
         navigate(ROUTES.FINAL);
       }
 
     } catch (err) {
-      // Handle authentication errors specifically
+      // Handle authentication errors
       if (err.message.includes('Session expired') || err.message.includes('log in again')) {
         setError('Your session has expired. Redirecting to home page...');
         setTimeout(() => navigate(ROUTES.HOME), 2000);
@@ -190,12 +323,43 @@ const ImagePage = () => {
     }
   };
 
+  // Utility functions
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getValidationMessage = () => {
+    if (selectedEmotions.length === 0) {
+      return 'Please select at least one emotion to continue';
+    }
+    return '';
+  };
+
+  const getButtonText = () => {
+    if (isSubmitting) {
+      return (
+        <>
+          <span className="spinner-border spinner-border-sm me-2" />
+          Processing...
+        </>
+      );
+    }
+    
+    const isLastImage = state.currentImageIndex + 1 >= state.images.length;
+    const buttonText = isLastImage ? 'Complete Assessment' : 'Next Image';
+    
+    return (
+      <>
+        {isRecording && <i className="bi bi-stop-fill me-1" title="Will stop recording" />}
+        {buttonText}
+        <i className="bi bi-arrow-right ms-2"></i>
+      </>
+    );
+  };
+
+  // Early returns for loading states
   if (!state.images || state.images.length === 0) {
     return <LoadingSpinner message="Loading images..." fullScreen />;
   }
@@ -231,99 +395,115 @@ const ImagePage = () => {
             </Alert>
           )}
 
-          <Row>
-            {/* Image Display */}
-            <Col lg={6}>
-              <Card className="mb-4">
-                <Card.Header>
-                  <h5 className="mb-0">Current Image: {currentImageName}</h5>
-                </Card.Header>
-                <Card.Body className="text-center">
-                  {isLoadingImage ? (
-                    <div className="d-flex justify-content-center align-items-center" style={{ height: '300px' }}>
-                      <LoadingSpinner message="Loading image..." />
-                    </div>
-                  ) : currentImageUrl ? (                    <img
-                      src={currentImageUrl}
-                      alt={`Stimulus ${state.currentImageIndex + 1}`}
-                      className="img-fluid rounded"
-                      style={{ maxHeight: '400px', objectFit: 'contain' }}
-                    />
-                  ) : (
-                    <div className="text-muted">Failed to load image</div>
-                  )}
-                </Card.Body>
-              </Card>
-            </Col>
-
-            {/* Video Recording */}
-            <Col lg={6}>
-              <Card className="mb-4">
-                <Card.Header>
-                  <h5 className="mb-0">Record Your Reaction</h5>
-                </Card.Header>
-                <Card.Body>
-                  <WebcamDisplay
-                    videoRef={videoRef}
-                    canvasRef={canvasRef}
-                    isStreaming={isStreaming}
-                    className="mb-3"
-                    style={{ maxHeight: '300px' }}
-                  />
-                  
-                  <div className="text-center mb-3">
-                    {isRecording ? (
-                      <div>
-                        <div className="text-danger mb-2">
-                          <i className="bi bi-record-circle-fill me-2"></i>
-                          Recording: {formatTime(recordingDuration)}
-                        </div>
-                        <Button
-                          variant="danger"
-                          onClick={stopRecording}
-                          size="lg"
-                        >
-                          <i className="bi bi-stop-fill me-2"></i>
-                          Stop Recording
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        onClick={startRecording}
-                        disabled={!isStreaming || !currentImageUrl}
-                        size="lg"
-                      >
-                        <i className="bi bi-camera-video me-2"></i>
-                        Start Recording
-                      </Button>
-                    )}
-                  </div>
-
-                  {recordedVideo && (
-                    <Alert variant="success" className="text-center">
-                      <i className="bi bi-check-circle me-2"></i>
-                      Video recorded successfully ({formatTime(recordingDuration)})
-                    </Alert>
-                  )}
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-
-          {/* Comment Section */}
-          <Card className="mb-4">
-            <Card.Body>
-              <Form.Group className="mb-3">
-                <Form.Label>Your thoughts about this image (optional)</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="Describe what you see or how you feel about this image..."
+          {/* Image Display - Full width now */}
+          <Card className="mb-4 position-relative">
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Current Image: {currentImageName}</h5>
+              {/* Recording indicator badge */}
+              {(isStreaming || isRecording || recordedVideo) && (
+                <div className="recording-status">
+                  {isRecording ? (
+                    <span className="badge bg-danger d-flex align-items-center">
+                      <i className="bi bi-record-circle-fill me-1"></i>
+                      Recording {formatTime(recordingDuration)}
+                    </span>
+                  ) : recordedVideo ? (
+                    <span className="badge bg-success d-flex align-items-center">
+                      <i className="bi bi-check-circle-fill me-1"></i>
+                      Recorded ({formatTime(recordingDuration)})
+                    </span>
+                  ) : isStreaming ? (
+                    <span className="badge bg-info d-flex align-items-center">
+                      <i className="bi bi-camera-video me-1"></i>
+                      Camera Ready
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </Card.Header>
+            <Card.Body className="text-center">
+              {isLoadingImage ? (
+                <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+                  <LoadingSpinner message="Loading image..." />
+                </div>
+              ) : currentImageUrl ? (
+                <img
+                  src={currentImageUrl}
+                  alt={`Stimulus ${state.currentImageIndex + 1}`}
+                  className="img-fluid rounded"
+                  style={{ maxHeight: '600px', objectFit: 'contain', width: '100%' }}
                 />
-              </Form.Group>
+              ) : (
+                <div className="text-muted">Failed to load image</div>
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Hidden webcam for recording - not visible to user */}
+          <div style={{ display: 'none' }}>
+            <WebcamDisplay
+              videoRef={videoRef}
+              canvasRef={canvasRef}
+              isStreaming={isStreaming}
+            />
+          </div>
+
+          {/* Emotion and Comment Section */}
+          <Card className="mb-4">
+            <Card.Header>
+              <h5 className="mb-0">Your Reaction</h5>
+              {isRecording && (
+                <small className="text-muted">
+                  <i className="bi bi-info-circle me-1"></i>
+                  Recording your reaction automatically. Select emotions and click "Next" when ready.
+                </small>
+              )}
+            </Card.Header>
+            <Card.Body>
+              <Row>
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>How does this image make you feel? <span className="text-danger">*</span></Form.Label>
+                    <div className="d-flex flex-wrap gap-2 mt-2">
+                      {emotionOptions.map((option) => (
+                        <div
+                          key={option.value}
+                          className={`emotion-checkbox ${selectedEmotions.includes(option.value) ? 'selected' : ''}`}
+                          onClick={() => handleEmotionToggle(option.value)}
+                        >
+                          <div className="emoji">
+                            {option.emoji}
+                          </div>
+                          <div className="label">
+                            {option.label}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedEmotions.length > 0 && (
+                      <Form.Text className="text-muted mt-2">
+                        Selected: {selectedEmotions.map(emotion => 
+                          emotionOptions.find(opt => opt.value === emotion)?.label
+                        ).join(', ')}
+                      </Form.Text>
+                    )}
+                  </Form.Group>
+                </Col>
+              </Row>
+              <Row>
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Additional thoughts (optional)</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Describe what you see or how you feel about this image..."
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
             </Card.Body>
           </Card>
 
@@ -333,20 +513,19 @@ const ImagePage = () => {
               variant="primary"
               size="lg"
               onClick={handleSubmitReaction}
-              disabled={!recordedVideo || isSubmitting}
+              disabled={selectedEmotions.length === 0 || isSubmitting}
               className="px-5"
             >
-              {isSubmitting ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {state.currentImageIndex + 1 < state.images.length ? 'Next Image' : 'Complete Assessment'}                <i className="bi bi-arrow-right ms-2"></i>
-                </>
-              )}
+              {getButtonText()}
             </Button>
+            
+            {selectedEmotions.length === 0 && (
+              <div className="mt-2">
+                <small className="text-muted">
+                  {getValidationMessage()}
+                </small>
+              </div>
+            )}
           </div>
         </Col>
       </Row>

@@ -108,6 +108,7 @@ export const useWebcam = () => {
   return {
     videoRef,
     canvasRef,
+    streamRef,
     isStreaming,
     error,
     startWebcam,
