@@ -290,11 +290,11 @@ const ImagePage = () => {
       const emotionResponse = await ApiService.submitRecognition(recordedVideo);
       const emotion = emotionResponse.emotion || 'unknown';
       
-      // Store reaction data
+      // Store reaction data - prioritize AI-detected emotion, fallback to user-selected if no AI result
       const reactionData = {
         imageId: state.images[state.currentImageIndex],
         description: comment.trim() || '',
-        reaction: selectedEmotions,
+        reaction: emotion !== 'unknown' ? emotion : (selectedEmotions.length > 0 ? selectedEmotions[0] : 'neutral'),
         aiComment: emotion,
         videoBlob: recordedVideo,
         timestamp: new Date().toISOString()

@@ -23,9 +23,8 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
       try {
         // Prepare the assessment data
         const assessmentData = {
-          userId: state.profile.userId,
           imagesDescriptionsAndReactions: state.imageReactions.map(reaction => ({
-            imageId: reaction.imageId,
+            image: reaction.imageId,
             description: reaction.description || '',
             reaction: reaction.reaction,
             aiComment: reaction.aiComment || reaction.reaction
