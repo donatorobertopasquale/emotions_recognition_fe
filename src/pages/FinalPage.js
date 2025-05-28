@@ -12,10 +12,16 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
   const [results, setResults] = useState(null);
   const navigate = useNavigate();
   const { state, resetState } = useAppContext();
+  
+  // Extract specific values to avoid endless re-renders
+  const { profile, imageReactions, isAuthenticated } = state;
+  const userId = profile?.userId;
+  const hasReactions = imageReactions && imageReactions.length > 0;
+  
   useEffect(() => {
     const submitAssessment = async () => {
       // Redirect if no data to submit or not authenticated
-      if (!state.profile.userId || !state.imageReactions || state.imageReactions.length === 0 || !state.isAuthenticated) {
+      if (!userId || !hasReactions || !isAuthenticated) {
         navigate(ROUTES.HOME);
         return;
       }
@@ -23,7 +29,7 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
       try {
         // Prepare the assessment data
         const assessmentData = {
-          imagesDescriptionsAndReactions: state.imageReactions.map(reaction => ({
+          imagesDescriptionsAndReactions: imageReactions.map(reaction => ({
             image: reaction.imageId,
             description: reaction.description || '',
             reaction: reaction.reaction,
@@ -36,12 +42,12 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
         
         // Calculate some basic statistics for display
         const emotionCounts = {};
-        state.imageReactions.forEach(reaction => {
+        imageReactions.forEach(reaction => {
           const emotion = reaction.reaction;
           emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
         });
 
-        const totalReactions = state.imageReactions.length;
+        const totalReactions = imageReactions.length;
         const dominantEmotion = Object.keys(emotionCounts).reduce((a, b) => 
           emotionCounts[a] > emotionCounts[b] ? a : b
         );
@@ -51,14 +57,17 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
           dominantEmotion,
           totalImages: totalReactions,
           emotionBreakdown: {},
-          reactions: state.imageReactions,
+          reactions: imageReactions,
           submissionResponse: response
         };
 
         // Calculate percentages
         Object.keys(emotionCounts).forEach(emotion => {
           resultsData.emotionBreakdown[emotion] = (emotionCounts[emotion] / totalReactions) * 100;
-        });        setResults(resultsData);      } catch (error) {
+        });        
+        
+        setResults(resultsData);
+      } catch (error) {
         // Handle authentication errors specifically
         if (error.message.includes('Session expired') || error.message.includes('log in again')) {
           setSubmissionError('Your session has expired. Redirecting to home page...');
@@ -72,7 +81,7 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
     };
 
     submitAssessment();
-  }, [state, navigate]);
+  }, [userId, hasReactions, isAuthenticated, imageReactions, navigate]);
 
   const handleStartOver = () => {
     resetState();
@@ -236,10 +245,10 @@ const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true
                   <Row>
                     <Col sm={6}>
                       <p className="mb-2">
-                        <strong>Participant:</strong> {state.profile.nickname}
+                        <strong>Participant:</strong> {profile?.nickname || 'N/A'}
                       </p>
                       <p className="mb-2">
-                        <strong>User ID:</strong> {state.profile.userId || 'N/A'}
+                        <strong>User ID:</strong> {userId || 'N/A'}
                       </p>
                     </Col>
                     <Col sm={6}>
