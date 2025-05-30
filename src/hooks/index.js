@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 // Export custom hooks
 export { useWebcam } from './useWebcam';
 export { useAuth } from './useAuth';
+export { useWebSocket } from './useWebSocket';
 
 /**
  * Custom hook for managing local storage

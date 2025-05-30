@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Card, Form, Button, Alert, Row, Col, ProgressBar } from 'react-bootstrap';
+import { Container, Card, Form, Button, Alert, Row, Col, ProgressBar, Badge } from 'react-bootstrap';
 import { useAppContext } from '../context/AppContext';
 import { useWebcam } from '../hooks/useWebcam';
+import { useWebSocket } from '../hooks/useWebSocket';
 import WebcamDisplay from '../components/WebcamDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ApiService from '../services/apiService';
@@ -35,6 +36,14 @@ const ImagePage = () => {
     stopWebcam,
   } = useWebcam();
 
+  const {
+    emotionClassification,
+    sendText,
+    clearEmotionClassification,
+    isConnected: isWebSocketConnected,
+    error: websocketError
+  } = useWebSocket();
+
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -60,6 +69,49 @@ const ImagePage = () => {
         return [...prev, emotionValue];
       }
     });
+  };
+
+  // Handle comment changes and detect new words for WebSocket emotion classification
+  const handleCommentChange = (e) => {
+    const newComment = e.target.value;
+    setComment(newComment);
+
+    // Detect when a new word is completed (user types a space)
+    if (newComment.length > comment.length && newComment.endsWith(' ')) {
+      const words = newComment.trim().split(/\s+/);
+      if (words.length > 0 && words[words.length - 1] !== '') {
+        // Send the complete text for emotion classification
+        sendText(newComment.trim());
+      }
+    }
+  };
+
+  // Get emotion icon for classification display
+  const getEmotionIcon = (emotion) => {
+    const iconMap = {
+      'joy': '😊',
+      'anger': '😠',
+      'disgust': '🤢',
+      'fear': '😨',
+      'neutral': '😐',
+      'sadness': '😢',
+      'surprise': '😲'
+    };
+    return iconMap[emotion] || '😐';
+  };
+
+  // Get emotion color for classification display
+  const getEmotionColor = (emotion) => {
+    const colorMap = {
+      'joy': 'success',
+      'anger': 'danger',
+      'disgust': 'warning',
+      'fear': 'dark',
+      'neutral': 'secondary',
+      'sadness': 'info',
+      'surprise': 'primary'
+    };
+    return colorMap[emotion] || 'secondary';
   };
   
   // Redirect if no profile data or images
@@ -116,6 +168,7 @@ const ImagePage = () => {
       setComment('');
       setSelectedEmotions([]);
       setError(null);
+      clearEmotionClassification();
     };
 
     resetStateForNewImage();
@@ -388,10 +441,10 @@ const ImagePage = () => {
             />
           </div>
 
-          {(error || webcamError) && (
+          {(error || webcamError || websocketError) && (
             <Alert variant="danger" className="mb-4">
               <i className="bi bi-exclamation-triangle me-2"></i>
-              {error || webcamError}
+              {error || webcamError || websocketError}
             </Alert>
           )}
 
@@ -498,9 +551,39 @@ const ImagePage = () => {
                       as="textarea"
                       rows={3}
                       value={comment}
-                      onChange={(e) => setComment(e.target.value)}
+                      onChange={handleCommentChange}
                       placeholder="Describe what you see or how you feel about this image..."
                     />
+                    
+                    {/* Real-time emotion classification display */}
+                    {emotionClassification && (
+                      <div className="mt-2 d-flex align-items-center gap-2">
+                        <small className="text-muted">Real-time emotion detected:</small>
+                        <Badge 
+                          bg={getEmotionColor(emotionClassification.label)} 
+                          className="emotion-classification-badge d-flex align-items-center gap-1"
+                        >
+                          <span className="emoji">{getEmotionIcon(emotionClassification.label)}</span>
+                          <span className="text-capitalize">{emotionClassification.label}</span>
+                          <span>({emotionClassification.score})</span>
+                        </Badge>
+                      </div>
+                    )}
+                    
+                    {/* WebSocket connection status */}
+                    {!isWebSocketConnected && (
+                      <Form.Text className="text-warning">
+                        <i className="bi bi-exclamation-triangle me-1"></i>
+                        Real-time emotion detection unavailable
+                      </Form.Text>
+                    )}
+                    
+                    {websocketError && (
+                      <Form.Text className="text-danger">
+                        <i className="bi bi-x-circle me-1"></i>
+                        {websocketError}
+                      </Form.Text>
+                    )}
                   </Form.Group>
                 </Col>
               </Row>
