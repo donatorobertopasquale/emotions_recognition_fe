@@ -24,6 +24,7 @@ export const useWebSocket = () => {
     const wsBaseURL = baseURL.replace(/^https?:/, wsProtocol);
     const wsUrl = `${wsBaseURL}/api/classifier/ws`;  // Fixed: Server uses /api/ws not /api/classifier/ws
     
+    // eslint-disable-next-line no-console
     console.log('WebSocket URL:', wsUrl);
     return wsUrl;
   }, []);
@@ -55,11 +56,13 @@ export const useWebSocket = () => {
           setLastMessage(data);
           
           // Debug: Log received WebSocket message
+          // eslint-disable-next-line no-console
           console.log('WebSocket message received:', data);
           
           // Handle emotion classification response
           if (data.type === 'emotion_classification' && data.label && data.score !== undefined) {
             // Server sends: {type: 'emotion_classification', label: 'joy', score: 0.988...}
+            // eslint-disable-next-line no-console
             console.log('Processing emotion classification:', data);
             setEmotionClassification({
               label: data.label,
@@ -67,12 +70,14 @@ export const useWebSocket = () => {
             });
           } else if (data.label && data.score !== undefined) {
             // Handle direct emotion classification format (fallback)
+            // eslint-disable-next-line no-console
             console.log('Processing direct emotion format:', data);
             setEmotionClassification({
               label: data.label,
               score: Math.round(data.score * 100) / 100
             });
           } else {
+            // eslint-disable-next-line no-console
             console.log('Unrecognized message format:', data);
           }
         } catch (err) {
@@ -86,6 +91,7 @@ export const useWebSocket = () => {
         setConnectionStatus('Disconnected');
         
         // Log close details for debugging
+        // eslint-disable-next-line no-console
         console.log('WebSocket closed:', {
           code: event.code,
           reason: event.reason,
@@ -153,6 +159,7 @@ export const useWebSocket = () => {
   const sendText = useCallback((text) => {
     if (ws.current?.readyState === WebSocket.OPEN && text.trim()) {
       try {
+        // eslint-disable-next-line no-console
         console.log('Sending text to WebSocket:', text.trim());
         // Send plain text string as expected by the WebSocket API
         ws.current.send(text.trim());
@@ -162,6 +169,7 @@ export const useWebSocket = () => {
         setError('Failed to send message');
       }
     } else {
+      // eslint-disable-next-line no-console
       console.log('Cannot send text - WebSocket not ready:', {
         readyState: ws.current?.readyState,
         textLength: text.trim().length,

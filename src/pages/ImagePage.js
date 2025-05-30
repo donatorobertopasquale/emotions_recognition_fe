@@ -19,6 +19,8 @@ const ImagePage = () => {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recordedVideo, setRecordedVideo] = useState(null);
+  const [aiPrediction, setAiPrediction] = useState(null);
+  const [isProcessingVideo, setIsProcessingVideo] = useState(false);
   
   const navigate = useNavigate();  const { 
     state, 
@@ -168,6 +170,8 @@ const ImagePage = () => {
       setComment('');
       setSelectedEmotions([]);
       setError(null);
+      setAiPrediction(null);
+      setIsProcessingVideo(false);
       clearEmotionClassification();
     };
 
@@ -218,6 +222,8 @@ const ImagePage = () => {
           type: mediaRecorderOptions.mimeType || 'video/webm' 
         });
         setRecordedVideo(blob);
+        // Process the video for emotion prediction immediately after recording
+        processVideoForPrediction(blob);
       };
 
       mediaRecorder.onerror = (event) => {
@@ -315,6 +321,27 @@ const ImagePage = () => {
     }
   };
 
+  // Process video for AI emotion prediction
+  const processVideoForPrediction = async (videoBlob) => {
+    try {
+      setIsProcessingVideo(true);
+      setError(null);
+      
+      // Call the API to get emotion prediction
+      const emotionResponse = await ApiService.submitRecognition(videoBlob);
+      const emotion = emotionResponse.emotion || 'unknown';
+      
+      setAiPrediction(emotion);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to process video for prediction:', err);
+      // Don't show error to user - this is optional background processing
+      setAiPrediction('unknown');
+    } finally {
+      setIsProcessingVideo(false);
+    }
+  };
+
   const handleSubmitReaction = async () => {
     try {
       // Auto-stop recording if still recording
@@ -339,16 +366,17 @@ const ImagePage = () => {
       setIsSubmitting(true);
       setError(null);
 
-      // Submit to API
-      const emotionResponse = await ApiService.submitRecognition(recordedVideo);
-      const emotion = emotionResponse.emotion || 'unknown';
+      // Use the already processed AI prediction
+      const emotion = aiPrediction || 'unknown';
       
-      // Store reaction data - prioritize AI-detected emotion, fallback to user-selected if no AI result
+      // Store reaction data with all collected information
       const reactionData = {
         imageId: state.images[state.currentImageIndex],
         description: comment.trim() || '',
         reaction: emotion !== 'unknown' ? emotion : (selectedEmotions.length > 0 ? selectedEmotions[0] : 'neutral'),
         aiComment: emotion,
+        selectedEmotions: selectedEmotions, // Store user-selected emotions
+        sentimentAnalysis: emotionClassification, // Store real-time sentiment analysis
         videoBlob: recordedVideo,
         timestamp: new Date().toISOString()
       };
@@ -460,10 +488,18 @@ const ImagePage = () => {
                       <i className="bi bi-record-circle-fill me-1"></i>
                       Recording {formatTime(recordingDuration)}
                     </span>
+                  ) : isProcessingVideo ? (
+                    <span className="badge bg-warning d-flex align-items-center">
+                      <span className="spinner-border spinner-border-sm me-1"></span>
+                      Processing...
+                    </span>
                   ) : recordedVideo ? (
                     <span className="badge bg-success d-flex align-items-center">
                       <i className="bi bi-check-circle-fill me-1"></i>
                       Recorded ({formatTime(recordingDuration)})
+                      {aiPrediction && aiPrediction !== 'unknown' && (
+                        <span className="ms-2 text-capitalize">- AI: {aiPrediction}</span>
+                      )}
                     </span>
                   ) : isStreaming ? (
                     <span className="badge bg-info d-flex align-items-center">
