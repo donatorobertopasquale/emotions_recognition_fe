@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { isAuthenticated } from '../utils/authUtils';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { isAuthenticated as checkAuthentication } from '../utils/authUtils';
 
 /**
  * Custom hook for managing WebSocket connections for emotion classification
  */
-export const useWebSocket = () => {
+export const useWebSocket = (autoConnect = false) => {
   const [connectionStatus, setConnectionStatus] = useState('Disconnected');
   const [lastMessage, setLastMessage] = useState(null);
   const [emotionClassification, setEmotionClassification] = useState(null);
+  const [activeConnections, setActiveConnections] = useState(0);
   const [error, setError] = useState(null);
   
   const ws = useRef(null);
@@ -22,7 +23,7 @@ export const useWebSocket = () => {
     
     // Remove http/https protocol and replace with ws/wss
     const wsBaseURL = baseURL.replace(/^https?:/, wsProtocol);
-    const wsUrl = `${wsBaseURL}/api/classifier/ws`;  // Fixed: Server uses /api/ws not /api/classifier/ws
+    const wsUrl = `${wsBaseURL}/api/classifier/ws`;  // Correct endpoint based on backend
     
     // eslint-disable-next-line no-console
     console.log('WebSocket URL:', wsUrl);
@@ -33,7 +34,7 @@ export const useWebSocket = () => {
   const connect = useCallback(() => {
     try {
       // Check if user is authenticated before connecting
-      if (!isAuthenticated()) {
+      if (!checkAuthentication()) {
         setError('Authentication required. Please log in first.');
         setConnectionStatus('Error');
         return;
@@ -68,6 +69,11 @@ export const useWebSocket = () => {
               label: data.label,
               score: Math.round(data.score * 100) / 100 // Round to 2 decimal places
             });
+          } else if (data.type === 'connection_update' && data.active_connections !== undefined) {
+            // Handle connection count updates
+            setActiveConnections(data.active_connections);
+            // eslint-disable-next-line no-console
+            console.log('Active connections updated:', data.active_connections);
           } else if (data.label && data.score !== undefined) {
             // Handle direct emotion classification format (fallback)
             // eslint-disable-next-line no-console
@@ -183,28 +189,42 @@ export const useWebSocket = () => {
     setEmotionClassification(null);
   }, []);
 
-  // Initialize connection on mount
+  // Initialize connection only when autoConnect is true and authenticated
   useEffect(() => {
-    connect();
+    if (autoConnect && checkAuthentication()) {
+      connect();
+    }
     
     // Cleanup on unmount
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, [connect, disconnect, autoConnect]);
 
-  return {
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(() => ({
     connectionStatus,
     lastMessage,
     emotionClassification,
+    activeConnections,
     error,
     sendText,
     clearEmotionClassification,
     connect,
     disconnect,
     isConnected: connectionStatus === 'Connected',
-    isAuthenticated: isAuthenticated()
-  };
+    isAuthenticated: checkAuthentication()
+  }), [
+    connectionStatus,
+    lastMessage,
+    emotionClassification,
+    activeConnections,
+    error,
+    sendText,
+    clearEmotionClassification,
+    connect,
+    disconnect
+  ]);
 };
 
 export default useWebSocket;

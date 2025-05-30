@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useReducer } from 'react';
+import React, { createContext, useContext, useReducer, useMemo } from 'react';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 // Initial state
 const initialState = {
@@ -96,9 +97,15 @@ const AppContext = createContext();
 // Provider component
 export const AppProvider = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const value = {
+  
+  // Initialize WebSocket hook but don't auto-connect
+  const webSocket = useWebSocket(false);
+  
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
     state,
     dispatch,
+    webSocket, // Include WebSocket functionality
     // Action creators
     setProfile: (profile) => dispatch({ type: ACTION_TYPES.SET_PROFILE, payload: profile }),
     updateProfileField: (field, value) => dispatch({ 
@@ -107,12 +114,13 @@ export const AppProvider = ({ children }) => {
     }),
     setImages: (images) => dispatch({ type: ACTION_TYPES.SET_IMAGES, payload: images }),
     setCurrentImageIndex: (index) => dispatch({ type: ACTION_TYPES.SET_CURRENT_IMAGE_INDEX, payload: index }),
-    addImageReaction: (reaction) => dispatch({ type: ACTION_TYPES.ADD_IMAGE_REACTION, payload: reaction }),    setAssessmentResults: (results) => dispatch({ type: ACTION_TYPES.SET_ASSESSMENT_RESULTS, payload: results }),
+    addImageReaction: (reaction) => dispatch({ type: ACTION_TYPES.ADD_IMAGE_REACTION, payload: reaction }),
+    setAssessmentResults: (results) => dispatch({ type: ACTION_TYPES.SET_ASSESSMENT_RESULTS, payload: results }),
     setLoading: (loading) => dispatch({ type: ACTION_TYPES.SET_LOADING, payload: loading }),
     setError: (error) => dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error }),
     setAuthenticated: (authenticated) => dispatch({ type: ACTION_TYPES.SET_AUTHENTICATED, payload: authenticated }),
     resetState: () => dispatch({ type: ACTION_TYPES.RESET_STATE })
-  };
+  }), [state, dispatch, webSocket]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

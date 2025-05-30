@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Container, Card, Form, Button, Alert, Row, Col, ProgressBar, Badge } from 'react-bootstrap';
 import { useAppContext } from '../context/AppContext';
 import { useWebcam } from '../hooks/useWebcam';
-import { useWebSocket } from '../hooks/useWebSocket';
 import WebcamDisplay from '../components/WebcamDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ApiService from '../services/apiService';
@@ -22,10 +21,14 @@ const ImagePage = () => {
   const [aiPrediction, setAiPrediction] = useState(null);
   const [isProcessingVideo, setIsProcessingVideo] = useState(false);
   
+  // Ref for debouncing WebSocket requests
+  const debounceTimeoutRef = useRef(null);
+  
   const navigate = useNavigate();  const { 
     state, 
     setCurrentImageIndex, 
-    addImageReaction
+    addImageReaction,
+    webSocket
   } = useAppContext();
   
   const {
@@ -37,14 +40,6 @@ const ImagePage = () => {
     startWebcam,
     stopWebcam,
   } = useWebcam();
-
-  const {
-    emotionClassification,
-    sendText,
-    clearEmotionClassification,
-    isConnected: isWebSocketConnected,
-    error: websocketError
-  } = useWebSocket();
 
   const mediaRecorderRef = useRef(null);
   const recordedChunksRef = useRef([]);
@@ -73,18 +68,22 @@ const ImagePage = () => {
     });
   };
 
-  // Handle comment changes and detect new words for WebSocket emotion classification
+  // Handle comment changes and send real-time emotion classification with debouncing
   const handleCommentChange = (e) => {
     const newComment = e.target.value;
     setComment(newComment);
 
-    // Detect when a new word is completed (user types a space)
-    if (newComment.length > comment.length && newComment.endsWith(' ')) {
-      const words = newComment.trim().split(/\s+/);
-      if (words.length > 0 && words[words.length - 1] !== '') {
-        // Send the complete text for emotion classification
-        sendText(newComment.trim());
-      }
+    // Clear previous timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Send text for emotion classification with a small delay to avoid excessive requests
+    // Only send if there's actual text content (not just whitespace)
+    if (newComment.trim().length > 0) {
+      debounceTimeoutRef.current = setTimeout(() => {
+        webSocket?.sendText(newComment.trim());
+      }, 300); // 300ms debounce delay for optimal real-time experience
     }
   };
 
@@ -129,7 +128,17 @@ const ImagePage = () => {
     return () => {
       stopWebcam();
     };
-  }, [startWebcam, stopWebcam]);  // Load current image
+  }, [startWebcam, stopWebcam]);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      // Clear any pending debounce timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);  // Load current image
   useEffect(() => {
     const loadCurrentImage = async () => {
       if (state.images && state.images.length > 0 && state.currentImageIndex < state.images.length) {
@@ -172,7 +181,7 @@ const ImagePage = () => {
       setError(null);
       setAiPrediction(null);
       setIsProcessingVideo(false);
-      clearEmotionClassification();
+      webSocket?.clearEmotionClassification();
     };
 
     resetStateForNewImage();
@@ -300,6 +309,9 @@ const ImagePage = () => {
       if (autoStopTimerRef.current) {
         clearTimeout(autoStopTimerRef.current);
       }
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -376,7 +388,7 @@ const ImagePage = () => {
         reaction: emotion !== 'unknown' ? emotion : (selectedEmotions.length > 0 ? selectedEmotions[0] : 'neutral'),
         aiComment: emotion,
         selectedEmotions: selectedEmotions, // Store user-selected emotions
-        sentimentAnalysis: emotionClassification, // Store real-time sentiment analysis
+        sentimentAnalysis: webSocket?.emotionClassification, // Store real-time sentiment analysis
         videoBlob: recordedVideo,
         timestamp: new Date().toISOString()
       };
@@ -469,10 +481,10 @@ const ImagePage = () => {
             />
           </div>
 
-          {(error || webcamError || websocketError) && (
+          {(error || webcamError || webSocket.error) && (
             <Alert variant="danger" className="mb-4">
               <i className="bi bi-exclamation-triangle me-2"></i>
-              {error || webcamError || websocketError}
+              {error || webcamError || webSocket.error}
             </Alert>
           )}
 
@@ -592,32 +604,32 @@ const ImagePage = () => {
                     />
                     
                     {/* Real-time emotion classification display */}
-                    {emotionClassification && (
+                    {webSocket?.emotionClassification && (
                       <div className="mt-2 d-flex align-items-center gap-2">
                         <small className="text-muted">Real-time emotion detected:</small>
                         <Badge 
-                          bg={getEmotionColor(emotionClassification.label)} 
+                          bg={getEmotionColor(webSocket.emotionClassification.label)} 
                           className="emotion-classification-badge d-flex align-items-center gap-1"
                         >
-                          <span className="emoji">{getEmotionIcon(emotionClassification.label)}</span>
-                          <span className="text-capitalize">{emotionClassification.label}</span>
-                          <span>({emotionClassification.score})</span>
+                          <span className="emoji">{getEmotionIcon(webSocket.emotionClassification.label)}</span>
+                          <span className="text-capitalize">{webSocket.emotionClassification.label}</span>
+                          <span>({webSocket.emotionClassification.score})</span>
                         </Badge>
                       </div>
                     )}
                     
                     {/* WebSocket connection status */}
-                    {!isWebSocketConnected && (
+                    {!webSocket?.isConnected && (
                       <Form.Text className="text-warning">
                         <i className="bi bi-exclamation-triangle me-1"></i>
                         Real-time emotion detection unavailable
                       </Form.Text>
                     )}
                     
-                    {websocketError && (
+                    {webSocket?.error && (
                       <Form.Text className="text-danger">
                         <i className="bi bi-x-circle me-1"></i>
-                        {websocketError}
+                        {webSocket.error}
                       </Form.Text>
                     )}
                   </Form.Group>

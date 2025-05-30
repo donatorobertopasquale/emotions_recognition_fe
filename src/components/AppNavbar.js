@@ -8,7 +8,7 @@ import { ROUTES } from '../constants';
 const AppNavbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state, resetState, setAuthenticated } = useAppContext();
+  const { state, resetState, setAuthenticated, webSocket } = useAppContext();
 
   const handleReset = () => {
     resetState();
@@ -52,6 +52,19 @@ const AppNavbar = () => {
               Capture
             </Nav.Link>
           </Nav>
+          
+          {/* Display active users count when connected */}
+          {state.isAuthenticated && webSocket?.isConnected && (
+            <Nav className="me-3">
+              <span className="navbar-text d-flex align-items-center">
+                <i className="bi bi-people-fill me-1 text-success"></i>
+                <small className="text-light">
+                  {webSocket.activeConnections} active user{webSocket.activeConnections !== 1 ? 's' : ''}
+                </small>
+              </span>
+            </Nav>
+          )}
+          
             <Nav>
             {state.isAuthenticated ? (
               <>

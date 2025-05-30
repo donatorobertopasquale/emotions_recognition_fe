@@ -7,16 +7,27 @@ import ApiService from '../services/apiService';
 import { ROUTES, EMOTIONS } from '../constants';
 import { formatTimestamp } from '../utils/helpers';
 
-const FinalPage = () => {  const [isSubmitting, setIsSubmitting] = useState(true);
+const FinalPage = () => {  
+  const [isSubmitting, setIsSubmitting] = useState(true);
   const [submissionError, setSubmissionError] = useState(null);
   const [results, setResults] = useState(null);
   const navigate = useNavigate();
-  const { state, resetState } = useAppContext();
+  const { state, resetState, webSocket } = useAppContext();
   
   // Extract specific values to avoid endless re-renders
   const { profile, imageReactions, isAuthenticated } = state;
   const userId = profile?.userId;
   const hasReactions = imageReactions && imageReactions.length > 0;
+
+  // Ensure WebSocket is disconnected when assessment is complete
+  useEffect(() => {
+    return () => {
+      // Disconnect WebSocket when leaving FinalPage
+      if (webSocket) {
+        webSocket.disconnect();
+      }
+    };
+  }, [webSocket]);
   
   useEffect(() => {
     const submitAssessment = async () => {

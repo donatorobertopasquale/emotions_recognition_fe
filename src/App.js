@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import { AppProvider, useAppContext } from './context/AppContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -17,7 +17,8 @@ import './App.css';
 
 // App content component that has access to context
 const AppContent = () => {
-  const { setAuthenticated } = useAppContext();
+  const { setAuthenticated, state, webSocket } = useAppContext();
+  const location = useLocation();
 
   // Check authentication status on app load
   useEffect(() => {
@@ -28,6 +29,29 @@ const AppContent = () => {
 
     checkAuth();
   }, [setAuthenticated]);
+
+  // Handle WebSocket connection based on route
+  useEffect(() => {
+    if (!state.isAuthenticated || !webSocket) {
+      return;
+    }
+
+    const currentPath = location.pathname;
+    
+    // Connect WebSocket when entering IMAGE route
+    if (currentPath === ROUTES.IMAGE && !webSocket.isConnected) {
+      // eslint-disable-next-line no-console
+      console.log('Connecting WebSocket for ImagePage');
+      webSocket.connect();
+    }
+    
+    // Disconnect WebSocket when leaving IMAGE/FINAL routes (going back to HOME or PROFILE)
+    if ((currentPath === ROUTES.HOME || currentPath === ROUTES.PROFILE) && webSocket.isConnected) {
+      // eslint-disable-next-line no-console
+      console.log('Disconnecting WebSocket - leaving image flow');
+      webSocket.disconnect();
+    }
+  }, [location.pathname, state.isAuthenticated, webSocket]);
 
   return (
     <div className="App min-vh-100 bg-dark">
