@@ -6,7 +6,8 @@ A modern React application for emotion recognition using facial analysis technol
 
 - **User Profile Management**: Secure demographic data collection
 - **Real-time Webcam Integration**: Live video capture with multiple frame sampling  
-- **Emotion Analysis**: Advanced facial expression recognition
+- **Emotion Analysis**: Advanced facial expression recognition with real-time text emotion detection
+- **WebSocket Integration**: Real-time active users counter and live emotion classification
 - **Responsive Design**: Mobile-first approach with Bootstrap integration
 - **Error Handling**: Comprehensive error boundaries and user feedback
 - **State Management**: Context API for global state management
@@ -25,6 +26,8 @@ src/
 ├── context/             # Global state management
 │   └── AppContext.js       # Main application context
 ├── hooks/               # Custom React hooks
+│   ├── useWebsocket.js  # Websocket hook
+│   ├── useAuth.js       # Authentication hook 
 │   ├── useWebcam.js        # Webcam functionality
 │   └── index.js            # Hook utilities
 ├── pages/               # Page components
@@ -51,6 +54,7 @@ src/
 - **React Router**: Client-side routing
 - **React Bootstrap**: UI component library
 - **Bootstrap Icons**: Icon library (install with `npm install bootstrap-icons`)
+- **WebSocket API**: Real-time communication for live features
 - **Context API**: State management
 - **Modern JavaScript**: ES6+ features
 
@@ -65,6 +69,7 @@ src/
 ### 2. Custom Hooks
 
 - **useWebcam**: Complete webcam functionality with error handling
+- **useWebSocket**: Real-time WebSocket connection management with authentication
 - **useLocalStorage**: Persistent storage management
 - **useDebounce**: Performance optimization for inputs
 - **useAsync**: Async operation handling
@@ -115,8 +120,13 @@ REACT_APP_CAPTURE_INTERVAL=2000
 
 1. **Home Page** (`/`): Welcome screen with instructions
 2. **Profile Page** (`/profile`): User demographic data collection
-3. **Image Page** (`/image`): Camera capture with real-time preview
+3. **Image Page** (`/image`): Camera capture with real-time preview and live emotion detection
 4. **Final Page** (`/final`): Results display with emotion breakdown
+
+### Real-time Features
+- **Active Users Counter**: Live display of connected users in the navbar
+- **Real-time Emotion Detection**: Instant emotion classification as users type comments
+- **WebSocket Integration**: Seamless real-time communication with backend services
 
 ## 🔧 Architecture Benefits
 
