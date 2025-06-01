@@ -18,12 +18,12 @@ export const useWebSocket = (autoConnect = false) => {
 
   // Get WebSocket URL based on current environment
   const getWebSocketUrl = useCallback(() => {
-    const baseURL = process.env.REACT_APP_API_URL || window.location.origin;
+    const baseURL = "https://emotion-recognition-classifier-egezbjckewc2hcce.italynorth-01.azurewebsites.net";
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     
     // Remove http/https protocol and replace with ws/wss
     const wsBaseURL = baseURL.replace(/^https?:/, wsProtocol);
-    const wsUrl = `${wsBaseURL}/api/classifier/ws`;  // Correct endpoint based on backend
+    const wsUrl = `${wsBaseURL}/api/ws`;  // Correct endpoint based on backend
     
     // eslint-disable-next-line no-console
     console.log('WebSocket URL:', wsUrl);

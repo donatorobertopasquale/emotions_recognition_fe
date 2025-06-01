@@ -30,34 +30,39 @@ const ProfilePage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);        const validation = validateProfile(localProfile);
+        setIsSubmitting(true);
+        const validation = validateProfile(localProfile);
         
         if (!validation.isValid) {
             setErrors(validation.errors);
             setIsSubmitting(false);
             return;
         }
-        
-        try {
+          try {
             // Submit profile to API (login endpoint)
             const response = await apiService.submitProfile(localProfile);
+            console.log('Profile submission response:', response);
 
             // Extract userId and images from response
             if (response && response.imagesName && Array.isArray(response.imagesName)) {
                 // Update profile with userId if provided
                 const updatedProfile = {
                     ...localProfile,
-                    userId: response.userId || null                };
+                    userId: response.userId || null
+                };
+                
+                console.log('Setting profile and images:', { updatedProfile, images: response.imagesName });
                 
                 // Save profile and images to context
                 setProfile(updatedProfile);
                 setImages(response.imagesName);
                 setAuthenticated(true); // Set authentication status
                 
-                // Use setTimeout to ensure state updates are completed before navigation
-                setTimeout(() => {
-                    navigate(ROUTES.IMAGE);
-                }, 0);            } else {
+                console.log('Authentication set to true, navigating to IMAGE route');
+                
+                // Navigate to image page immediately - no need to wait
+                navigate(ROUTES.IMAGE);
+            } else {
                 throw new Error('Invalid response format from server');
             }
         } catch (error) {

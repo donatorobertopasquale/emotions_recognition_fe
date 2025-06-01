@@ -15,16 +15,19 @@ class ApiService {
     }
     return null;
   }
-
   // Helper method to set JWT tokens as HTTP cookies
   setAuthTokens(accessToken, refreshToken) {
+    // Check if we're in production (HTTPS) or development (HTTP)
+    const isProduction = window.location.protocol === 'https:';
+    const secureFlag = isProduction ? 'secure;' : '';
+    
     if (accessToken) {
-      // Set access token cookie (secure, httpOnly in production)
-      document.cookie = `accessToken=${accessToken}; path=/; secure; SameSite=Strict; max-age=900`; // 15 minutes
+      // Set access token cookie (secure only in production)
+      document.cookie = `accessToken=${accessToken}; path=/; ${secureFlag} SameSite=Strict; max-age=900`; // 15 minutes
     }
     if (refreshToken) {
-      // Set refresh token cookie (secure, httpOnly in production)
-      document.cookie = `refreshToken=${refreshToken}; path=/; secure; SameSite=Strict; max-age=604800`; // 7 days
+      // Set refresh token cookie (secure only in production)
+      document.cookie = `refreshToken=${refreshToken}; path=/; ${secureFlag} SameSite=Strict; max-age=604800`; // 7 days
     }
   }
   // Helper method to clear JWT tokens
@@ -39,10 +42,11 @@ class ApiService {
       const response = await this.request('/auth/refresh', {
         method: 'POST',
       });
-      
-      if (response && response.accessToken) {
-        // Update access token cookie
-        document.cookie = `accessToken=${response.accessToken}; path=/; secure; SameSite=Strict; max-age=900`;
+        if (response && response.accessToken) {
+        // Update access token cookie (respect secure flag based on protocol)
+        const isProduction = window.location.protocol === 'https:';
+        const secureFlag = isProduction ? 'secure;' : '';
+        document.cookie = `accessToken=${response.accessToken}; path=/; ${secureFlag} SameSite=Strict; max-age=900`;
         return response.accessToken;
       }
       

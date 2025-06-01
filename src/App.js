@@ -19,16 +19,25 @@ import './App.css';
 const AppContent = () => {
   const { setAuthenticated, state, webSocket } = useAppContext();
   const location = useLocation();
-
   // Check authentication status on app load
   useEffect(() => {
     const checkAuth = () => {
       const isAuth = isAuthenticated();
-      setAuthenticated(isAuth);
+      // Only update if there's a mismatch to avoid unnecessary re-renders
+      if (isAuth !== state.isAuthenticated) {
+        setAuthenticated(isAuth);
+      }
     };
 
-    checkAuth();
-  }, [setAuthenticated]);
+    // Check auth on initial load and when cookies change
+    // But avoid overriding authentication state during active flows
+    const currentPath = location.pathname;
+    
+    // Don't interfere with authentication if user is on profile page or already authenticated
+    if (!state.isAuthenticated && currentPath !== ROUTES.PROFILE) {
+      checkAuth();
+    }
+  }, [setAuthenticated, state.isAuthenticated, location.pathname]);
 
   // Handle WebSocket connection based on route
   useEffect(() => {

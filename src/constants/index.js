@@ -1,9 +1,10 @@
 // API endpoints
 export const API_ENDPOINTS = {
-  RECOGNITION: '/api/classifier/predict/',
-  PROFILE: '/api/v1/login',
-  IMAGE: '/api/v1/download-image',
-  SUBMIT_ASSESSMENT: '/api/v1/register-result'
+  RECOGNITION: 'https://emotion-recognition-classifier-egezbjckewc2hcce.italynorth-01.azurewebsites.net/api/predict/',
+  PROFILE: 'https://emotion-recognition-be-e0abamfshzgyeaca.italynorth-01.azurewebsites.net/api/login',
+  IMAGE: 'https://emotion-recognition-be-e0abamfshzgyeaca.italynorth-01.azurewebsites.net/api/download-image',
+  SUBMIT_ASSESSMENT: 'https://emotion-recognition-be-e0abamfshzgyeaca.italynorth-01.azurewebsites.net/api/register-result'
+
 };
 
 // Application routes

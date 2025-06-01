@@ -13,9 +13,11 @@ import { ROUTES } from '../constants';
 const ProtectedRoute = ({ children }) => {
   const { state } = useAppContext();
   
-  // Check both context state and cookie-based authentication
-  const hasValidAuth = state.isAuthenticated && isAuthenticated();
-    if (!hasValidAuth) {
+  // Prioritize context state, fallback to cookie-based authentication
+  // This handles the case where profile was just submitted and cookies might not be immediately available
+  const hasValidAuth = state.isAuthenticated || isAuthenticated();
+  
+  if (!hasValidAuth) {
     // Redirect to home page if not authenticated
     return <Navigate to={ROUTES.HOME} replace />;
   }
