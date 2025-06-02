@@ -18,6 +18,7 @@ RUN apk add --no-cache openssl
 RUN rm -rf /usr/share/nginx/html/*
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy certificate generation script and nginx SSL config
 COPY generate_certificates.sh /generate_certificates.sh
