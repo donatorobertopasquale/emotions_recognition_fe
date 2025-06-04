@@ -5,6 +5,7 @@ import { AppProvider, useAppContext } from './context/AppContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppNavbar from './components/AppNavbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 import ProfilePage from './pages/ProfilePage';
 import ImagePage from './pages/ImagePage';
 import FinalPage from './pages/FinalPage';
@@ -55,6 +56,7 @@ const AppContent = () => {
 
   return (
     <div className="App min-vh-100 bg-dark">
+      <PWAInstallPrompt />
       <AppNavbar />
       <Container fluid>
         <Routes>
