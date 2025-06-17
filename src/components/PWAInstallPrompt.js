@@ -16,6 +16,7 @@ const PWAInstallPrompt = () => {
     };
 
     const handleAppInstalled = () => {
+      // eslint-disable-next-line no-console
       console.log('PWA was installed');
       setShowInstallPrompt(false);
       setDeferredPrompt(null);
@@ -40,8 +41,10 @@ const PWAInstallPrompt = () => {
     const { outcome } = await deferredPrompt.userChoice;
     
     if (outcome === 'accepted') {
+      // eslint-disable-next-line no-console
       console.log('User accepted the install prompt');
     } else {
+      // eslint-disable-next-line no-console
       console.log('User dismissed the install prompt');
     }
 

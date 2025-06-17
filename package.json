@@ -19,6 +19,7 @@
     "@testing-library/user-event": "^13.5.0",
     "bootstrap": "^5.3.5",
     "bootstrap-icons": "^1.13.1",
+    "google-auth-library": "^10.1.0",
     "react": "^19.1.0",
     "react-bootstrap": "^2.10.9",
     "react-dom": "^19.1.0",

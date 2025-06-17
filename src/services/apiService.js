@@ -128,14 +128,14 @@ class ApiService {
       // For other errors, provide a more generic message
       throw new Error(error.message || 'Network error occurred');
     }
-  }  // Profile related API calls - Login endpoint
+  }  // Profile related API calls - Google login endpoint
   async submitProfile(profileData) {
     const response = await this.request(API_ENDPOINTS.PROFILE, {
       method: 'POST',
       body: JSON.stringify(profileData),
     });
 
-    // Handle JWT tokens from response
+    // Handle JWT tokens from response (backend should still return tokens for API access)
     if (response && response.accessToken && response.refreshToken) {
       this.setAuthTokens(response.accessToken, response.refreshToken);
     }
