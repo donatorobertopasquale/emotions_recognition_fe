@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import { AppProvider, useAppContext } from './context/AppContext';
@@ -20,16 +20,19 @@ import './App.css';
 const AppContent = () => {
   const { setAuthenticated, state, webSocket } = useAppContext();
   const location = useLocation();
+  const hasCheckedAuth = useRef(false);
 
-  // Check authentication status on app load
+  // Check authentication status on app load (only once)
   useEffect(() => {
-    const checkAuth = () => {
+    if (!hasCheckedAuth.current) {
       const isAuth = isAuthenticated();
-      setAuthenticated(isAuth);
-    };
-
-    checkAuth();
-  }, [setAuthenticated]);
+      // Only update if the authentication status has actually changed
+      if (isAuth !== state.isAuthenticated) {
+        setAuthenticated(isAuth);
+      }
+      hasCheckedAuth.current = true;
+    }
+  }, [setAuthenticated, state.isAuthenticated]);
 
   // Handle WebSocket connection based on route
   useEffect(() => {

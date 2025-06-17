@@ -1,7 +1,7 @@
 // API endpoints
 export const API_ENDPOINTS = {
   RECOGNITION: '/api/classifier/predict/',
-  PROFILE: '/api/v1/login',
+  PROFILE: '/api/v1/google-login', // Updated to use Google login endpoint
   IMAGE: '/api/v1/download-image',
   SUBMIT_ASSESSMENT: '/api/v1/register-result'
 };

@@ -16,6 +16,7 @@ export const getCookie = (name) => {
 
 /**
  * Check if user is authenticated by verifying token existence
+ * Note: With Google Sign-In, authentication is handled by Google tokens and backend verification
  * @returns {boolean} - True if access token exists
  */
 export const isAuthenticated = () => {

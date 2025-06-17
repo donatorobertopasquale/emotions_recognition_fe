@@ -5,11 +5,12 @@ import { useWebSocket } from '../hooks/useWebSocket';
 const initialState = {
   profile: {
     nickname: '',
-    email: '',
     age: null,
     gender: '',
     nationality: '',
     userId: null, // Store userId from login response
+    email: null, // Store Google email (but don't require in form)
+    googleId: null, // Store Google ID
   },
   images: [], // List of image names from login response
   currentImageIndex: 0, // Track which image we're currently showing
@@ -101,12 +102,8 @@ export const AppProvider = ({ children }) => {
   // Initialize WebSocket hook but don't auto-connect
   const webSocket = useWebSocket(false);
   
-  // Memoize the context value to prevent unnecessary re-renders
-  const value = useMemo(() => ({
-    state,
-    dispatch,
-    webSocket, // Include WebSocket functionality
-    // Action creators
+  // Memoize action creators to prevent unnecessary re-renders
+  const actionCreators = useMemo(() => ({
     setProfile: (profile) => dispatch({ type: ACTION_TYPES.SET_PROFILE, payload: profile }),
     updateProfileField: (field, value) => dispatch({ 
       type: ACTION_TYPES.UPDATE_PROFILE_FIELD, 
@@ -120,7 +117,15 @@ export const AppProvider = ({ children }) => {
     setError: (error) => dispatch({ type: ACTION_TYPES.SET_ERROR, payload: error }),
     setAuthenticated: (authenticated) => dispatch({ type: ACTION_TYPES.SET_AUTHENTICATED, payload: authenticated }),
     resetState: () => dispatch({ type: ACTION_TYPES.RESET_STATE })
-  }), [state, dispatch, webSocket]);
+  }), [dispatch]);
+  
+  // Memoize the context value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
+    state,
+    dispatch,
+    webSocket, // Include WebSocket functionality
+    ...actionCreators
+  }), [state, dispatch, webSocket, actionCreators]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

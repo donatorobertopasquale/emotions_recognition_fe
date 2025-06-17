@@ -1,14 +1,6 @@
 import { AGE_CONSTRAINTS } from '../constants';
 
 /**
- * Validates email format
- */
-export const validateEmail = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-};
-
-/**
  * Validates profile data
  */
 export const validateProfile = (profile) => {
@@ -16,12 +8,6 @@ export const validateProfile = (profile) => {
 
   if (!profile.nickname?.trim()) {
     errors.nickname = 'Nickname is required';
-  }
-
-  if (!profile.email?.trim()) {
-    errors.email = 'Email is required';
-  } else if (!validateEmail(profile.email)) {
-    errors.email = 'Please enter a valid email address';
   }
 
   if (!profile.age || !Number.isInteger(profile.age) || profile.age < AGE_CONSTRAINTS.MIN || profile.age > AGE_CONSTRAINTS.MAX) {
